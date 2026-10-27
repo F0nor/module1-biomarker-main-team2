@@ -4,7 +4,7 @@ library(randomForest)
 library(tidymodels)
 library(modelr)
 library(yardstick)
-load('data/biomarker-clean.RData')
+load('../../data/biomarker-clean.RData')
 
 ## MULTIPLE TESTING
 ####################
@@ -97,7 +97,9 @@ class_metrics <- metric_set(sensitivity,
                             roc_auc)
 
 testing(biomarker_split) %>%
-  add_predictions(fit, type = 'response') %>%
-  class_metrics(estimate = factor(pred > 0.5),
-              truth = factor(class), pred,
-              event_level = 'second')
+  add_predictions(fit, type = 'response') %>% 
+  mutate(estimate = factor(pred >0.5, levels = c(FALSE, TRUE)),
+         truth = factor(class, levels = c(FALSE, TRUE))) %>%
+  class_metrics(estimate = estimate,
+                truth = truth, pred,
+                event_level = 'second')
