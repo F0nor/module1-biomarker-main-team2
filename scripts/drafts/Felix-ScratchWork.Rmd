@@ -9,11 +9,15 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggplot2)
+library(rsample)
+library(modelr)
+library(yardstick)
+library(randomForest)
+library(infer)
 ```
 
 ```{r read data}
 bio_dat_raw <- read.csv2("../../data/biomarker-raw.csv")
-
 
 # load in biomarker_clean
 load('../../data/biomarker-clean.RData')
@@ -124,7 +128,7 @@ testing(biomarker_split) %>%
 
 ```
 
-```{r}
+```{r look at distribution of protein values}
 biomarker_clean
 
 # look at the distribution of the protein values
@@ -149,11 +153,219 @@ biomarker_clean |>
     values_to = "values"
   ) |>
   ggplot(aes(x = values)) +
-  geom_histogram( bins = 60)
+  geom_histogram( bins = 60) +
+  labs( 
+    title = "Histogram of the raw protein values",
+    x = "Protein values",
+    y = "count")
 
 # The log transformation has centered the values around 0. It shows us the normality of the data.
 ```
 
+
+```{r remove outlier trimming}
+# get names
+var_names <- read_csv('../../data/biomarker-raw.csv', 
+                     col_names = F, 
+                     n_max = 2, 
+                     col_select = -(1:2)) %>%
+  t() %>%
+  as_tibble() %>%
+  rename(name = V1, 
+         abbreviation = V2) %>%
+  na.omit()
+
+# function for trimming outliers (good idea??)
+# trim <- function(x, .at){
+#   x[abs(x) > .at] <- sign(x[abs(x) > .at])*.at
+#   return(x)
+# }
+
+# read in data
+biomarker_clean_out <- read_csv('../../data/biomarker-raw.csv', 
+         skip = 2,
+         col_select = -2L,
+         col_names = c('group', 
+                       'empty',
+                       pull(var_names, abbreviation),
+                       'ados'),
+         na = c('-', '')) %>%
+  filter(!is.na(group)) %>%
+  # log transform, center and scale, and trim
+  # mutate(across(.cols = -c(group, ados), 
+                # ~ trim(scale(log10(.x))[, 1], .at = 3))) %>%
+  # reorder columns
+  select(group, ados, everything())
+
+# export as r binary
+biomarker_clean_out
+
+biomarker_clean_out |>
+  pivot_longer(
+    cols = -c(group, ados),
+    names_to = "Proteins",
+    values_to = "Values"
+  ) |>
+  filter(Proteins %in% sample(unique(Proteins), 9)) |>
+  ggplot(aes(x = Values)) +
+  geom_histogram(stat = "bin", bins = 60)
+```
+
+
+```{r modeling}
+# Potential methods to improve or replicate the original modeling:
+# Random Forest
+# Lasso Regression
+set.seed(10272026)
+
+# function to compute tests
+test_fn <- function(.df){
+  t_test(.df, 
+         formula = level ~ group,
+         order = c('ASD', 'TD'),
+         alternative = 'two-sided',
+         var.equal = F)
+}
+
+
+ttests_out <- biomarker_clean %>%
+  # drop ADOS score
+  select(-ados) %>%
+  # arrange in long format
+  pivot_longer(-group, 
+               names_to = 'protein', 
+               values_to = 'level') %>%
+  # nest by protein
+  nest(data = c(level, group)) %>% 
+  # compute t tests
+  mutate(ttest = map(data, test_fn)) %>%
+  unnest(ttest) %>%
+  # sort by p-value
+  arrange(p_value) %>%
+  # multiple testing correction
+  mutate(m = n(),
+         hm = log(m) + 1/(2*m) - digamma(1),
+         rank = row_number(),
+         p.adj = m*hm*p_value/rank)
+
+# select significant proteins
+proteins_s1 <- ttests_out %>%
+  slice_min(p.adj, n = 15) %>%
+  pull(protein)
+
+## RANDOM FOREST
+##################
+
+# store predictors and response separately
+predictors <- biomarker_clean %>%
+  select(-c(group, ados))
+
+response <- biomarker_clean %>% pull(group) %>% factor()
+
+# fit RF
+set.seed(101422)
+rf_out <- randomForest(x = predictors, 
+                       y = response, 
+                       ntree = 1000, 
+                       importance = T)
+
+# check errors
+rf_out$confusion
+
+# compute importance scores
+proteins_s2 <- rf_out$importance %>% 
+  as_tibble() %>%
+  mutate(protein = rownames(rf_out$importance)) %>%
+  slice_max(MeanDecreaseGini, n = 15) %>%
+  pull(protein)
+
+## LOGISTIC REGRESSION
+#######################
+
+# select subset of interest
+proteins_sstar <- intersect(proteins_s1, proteins_s2)
+
+biomarker_sstar <- biomarker_clean %>%
+  select(group, any_of(proteins_sstar)) %>%
+  mutate(class = (group == 'ASD')) %>%
+  select(-group)
+
+# partition into training and test set
+biomarker_split <- biomarker_sstar %>%
+  initial_split(prop = 0.8)
+
+# fit logistic regression model to training set
+fit <- glm(class ~ ., 
+           data = training(biomarker_split), 
+           family = 'binomial')
+
+# evaluate errors on test set
+class_metrics <- metric_set(sensitivity, 
+                            specificity, 
+                            accuracy,
+                            roc_auc)
+
+testing(biomarker_split) %>%
+  add_predictions(fit, type = 'response') %>% 
+  mutate(estimate = factor(pred >0.5, levels = c(FALSE, TRUE)),
+         truth = factor(class, levels = c(FALSE, TRUE))) %>%
+  class_metrics(estimate = estimate,
+              truth = truth, pred,
+              event_level = 'second')
+
+
+
+
+partition <- biomarker_clean %>%
+  initial_split(prop = 0.8)
+
+## RANDOM FOREST
+##################
+
+# store predictors and response separately
+predictors <- training(partition) %>%
+  select(-c(group, ados))
+
+response <- training(partition) %>% pull(group) %>% factor()
+
+# fit RF
+set.seed(101422)
+rf_out <- randomForest(x = predictors, 
+                       y = response, 
+                       ntree = 1000, 
+                       importance = T)
+
+# check errors
+rf_out$confusion
+
+# compute importance scores
+proteins_s2 <- rf_out$importance %>% 
+  as_tibble() %>%
+  mutate(protein = rownames(rf_out$importance)) %>%
+  slice_max(MeanDecreaseGini, n = 15) %>%
+  pull(protein)
+
+predictors_test <- testing(partition) %>%
+  select(-c(group, ados))
+
+response_test <- testing(partition) %>% pull(group) %>% factor()
+
+
+# Fuzzy
+selected_proteins <- bind_rows(
+  tibble(protein = proteins_s1, method = "ttest"),
+  tibble(protein = proteins_s2, method = "RF")
+) |>
+  count(protein, name = "n_methods")
+
+selected_proteins
+
+hard_set <- intersect(proteins_s1, proteins_s2)
+
+fuzzy_set <- union(proteins_s1, proteins_s2)
+
+fuzzy_set
+```
 
 
 

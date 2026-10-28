@@ -1,8 +1,8 @@
 library(tidyverse)
 
-
+getwd()
 # get names
-var_names <- read_csv('../../data/biomarker-raw.csv', 
+var_names <- read_csv('../data/biomarker-raw.csv', 
                      col_names = F, 
                      n_max = 2, 
                      col_select = -(1:2)) %>%
@@ -19,7 +19,7 @@ trim <- function(x, .at){
 }
 
 # read in data
-biomarker_clean <- read_csv('../../data/biomarker-raw.csv', 
+biomarker_clean <- read_csv('../data/biomarker-raw.csv', 
          skip = 2,
          col_select = -2L,
          col_names = c('group', 
@@ -36,4 +36,4 @@ biomarker_clean <- read_csv('../../data/biomarker-raw.csv',
 
 # export as r binary
 save(list = 'biomarker_clean', 
-     file = '../../data/biomarker-clean.RData')
+     file = '../data/biomarker-clean.RData')
