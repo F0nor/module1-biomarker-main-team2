@@ -1,9 +1,24 @@
 setwd("C:/Users/Felix/Documents/GitHub/module1-biomarker-team2/scripts")
-source("preprocessing.R")
 load("../data/biomarker-clean.RData")
 
+var_names <- read_csv('../data/biomarker-raw.csv', 
+                      col_names = F, 
+                      n_max = 2, 
+                      col_select = -(1:2)) %>%
+  t() %>%
+  as_tibble() %>%
+  rename(name = V1, 
+         abbreviation = V2) %>%
+  na.omit()
+
+# function for trimming outliers (good idea??)
+trim <- function(x, .at){
+  x[abs(x) > .at] <- sign(x[abs(x) > .at])*.at
+  return(x)
+}
 
 
+# Omit any of the log transformation and trimming
 biomarker_raw <- read_csv('../data/biomarker-raw.csv', 
                                 skip = 2,
                                 col_select = -2L,
@@ -12,12 +27,13 @@ biomarker_raw <- read_csv('../data/biomarker-raw.csv',
                                               pull(var_names, abbreviation),
                                               'ados'),
                                 na = c('-', '')) %>%
-  # filter(!is.na(group)) %>%
+  filter(!is.na(group)) %>%
   # log transform, center and scale, and trim
-  # mutate(across(.cols = -c(group, ados), 
+  # mutate(across(.cols = -c(group, ados),
   # ~ trim(scale(log10(.x))[, 1], .at = 3))) %>%
   # reorder columns
   select(group, ados, everything())
+
 
 
 hist_PreTransform <- biomarker_raw |>
@@ -64,5 +80,6 @@ hist_LogTransform <- biomarker_clean |>
     title = "Histogram of Sampled Log-Transformed Protein Values",
     x = "Protein values",
     y = "Count")
+
 
 ggsave(filename = "../results/figures/Hist-Logtransf.jpg", hist_LogTransform)

@@ -1,6 +1,5 @@
 library(tidyverse)
 
-getwd()
 # get names
 var_names <- read_csv('../data/biomarker-raw.csv', 
                      col_names = F, 

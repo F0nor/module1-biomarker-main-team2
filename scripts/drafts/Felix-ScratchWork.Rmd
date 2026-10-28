@@ -24,10 +24,6 @@ load('../../data/biomarker-clean.RData')
 
 biomarker_clean
 
-
-bio_dat_raw |>
-  table()
-
 ```
 
 ```{r inclass-analysis}
@@ -102,6 +98,8 @@ biomarker_sstar <- biomarker_clean %>%
   mutate(class = (group == 'ASD')) %>%
   select(-group)
 
+biomarker_sstar
+
 # partition into training and test set
 set.seed(101422)
 biomarker_split <- biomarker_sstar %>%
@@ -118,7 +116,9 @@ class_metrics <- metric_set(sensitivity,
                             accuracy,
                             roc_auc)
 
-testing(biomarker_split) %>%
+
+
+original_metrics <- testing(biomarker_split) %>%
   add_predictions(fit, type = 'response') %>% 
   mutate(estimate = factor(pred >0.5, levels = c(FALSE, TRUE)),
          truth = factor(class, levels = c(FALSE, TRUE))) %>%
@@ -192,31 +192,79 @@ biomarker_clean_out <- read_csv('../../data/biomarker-raw.csv',
          na = c('-', '')) %>%
   filter(!is.na(group)) %>%
   # log transform, center and scale, and trim
-  # mutate(across(.cols = -c(group, ados), 
-                # ~ trim(scale(log10(.x))[, 1], .at = 3))) %>%
+  mutate(across(.cols = -c(group, ados),
+                ~ scale(log10(.x)))) %>%
   # reorder columns
   select(group, ados, everything())
 
-# export as r binary
-biomarker_clean_out
+select_out <- function(x, .at){
+  return(x[abs(x) > .at])
+}
 
-biomarker_clean_out |>
+outliers <- biomarker_clean_out |>
+  mutate(subject = row_number()) |>
   pivot_longer(
-    cols = -c(group, ados),
+    cols = -c(group, ados, subject),
     names_to = "Proteins",
     values_to = "Values"
   ) |>
-  filter(Proteins %in% sample(unique(Proteins), 9)) |>
-  ggplot(aes(x = Values)) +
-  geom_histogram(stat = "bin", bins = 60)
+  filter(abs(Values) > 3)
+
+outliers_cnt <- biomarker_clean_out |>
+  mutate(subject = row_number()) |>
+  pivot_longer(
+    cols = -c(group, ados, subject),
+    names_to = "Proteins",
+    values_to = "Values"
+  ) |>
+  group_by(subject, group) |>
+  summarise(n_out = sum(abs(Values) > 3)) |>
+  arrange(desc(n_out))
+
+outliers_cnt
+
+OutDist_byGroup <- outliers_cnt |>
+  ggplot(aes(x = n_out, fill = group)) +
+  geom_histogram(bins = 60) +
+  facet_wrap(~ group) +
+  scale_fill_manual(values = c("ASD" = "pink", "TD" = "orange")) +
+  labs(
+    title = "Distribution of Outliers in Each Subject",
+    x = "Number of Outliers (|z| > 3)",
+    y = "Count of Subjects"
+  )
+
+ggsave(filename = "../../results/figures/OutDist_byGroup.jpg", OutDist_byGroup)
+
+outliers_cnt |>
+  group_by(group) |>
+  summarise(min = min(n_out),
+            max = max(n_out),
+            mean = mean(n_out),
+            median = median(n_out))
+# 152 subjects had outliers
+# Highest amount of outliers was 157 for TD and 126 for ASD
+# mean outliers was 13 for ASD and 17 for TD
+# Both with median of 9 outliers
+
+# TD: 1372 outliers
+# ASD: 1007 outliers
+
+# Outliers do not seem to be significantly more prevalant in one group than another. TD marginally has more outliers than ASD.
+
+wilcox.test(n_out ~ group, data = outliers_cnt)
 ```
 
 
-```{r modeling}
-# Potential methods to improve or replicate the original modeling:
-# Random Forest
-# Lasso Regression
-set.seed(10272026)
+```{r repeat analysis}
+set.seed(101422)
+
+
+partition <- biomarker_clean %>%
+  initial_split(prop = 0.8)
+
+biomarker_train <- training(partition)
+biomarker_test <- testing(partition)
 
 # function to compute tests
 test_fn <- function(.df){
@@ -228,7 +276,7 @@ test_fn <- function(.df){
 }
 
 
-ttests_out <- biomarker_clean %>%
+ttests_out <- biomarker_train %>%
   # drop ADOS score
   select(-ados) %>%
   # arrange in long format
@@ -248,55 +296,51 @@ ttests_out <- biomarker_clean %>%
          rank = row_number(),
          p.adj = m*hm*p_value/rank)
 
+n_proteins <- 20
+
 # select significant proteins
-proteins_s1 <- ttests_out %>%
-  slice_min(p.adj, n = 15) %>%
+train.proteins_s1 <- ttests_out %>%
+  slice_min(p.adj, n = n_proteins) %>%
   pull(protein)
+
 
 ## RANDOM FOREST
 ##################
 
 # store predictors and response separately
-predictors <- biomarker_clean %>%
+train.predictors <- biomarker_train %>%
   select(-c(group, ados))
 
-response <- biomarker_clean %>% pull(group) %>% factor()
+train.response <- biomarker_train %>% pull(group) %>% factor()
 
 # fit RF
-set.seed(101422)
-rf_out <- randomForest(x = predictors, 
-                       y = response, 
+train.rf_out <- randomForest(x = train.predictors, 
+                       y = train.response, 
                        ntree = 1000, 
                        importance = T)
 
 # check errors
-rf_out$confusion
+train.rf_out$confusion
 
 # compute importance scores
-proteins_s2 <- rf_out$importance %>% 
+train.proteins_s2 <- rf_out$importance %>% 
   as_tibble() %>%
   mutate(protein = rownames(rf_out$importance)) %>%
-  slice_max(MeanDecreaseGini, n = 15) %>%
+  slice_max(MeanDecreaseGini, n = n_proteins) %>%
   pull(protein)
 
+
+hard_intersect <- intersect(train.proteins_s1, train.proteins_s2)
+fuzzy_intersect <- union(train.proteins_s1, train.proteins_s2)
+
+fuzzy_intersect
 ## LOGISTIC REGRESSION
 #######################
 
-# select subset of interest
-proteins_sstar <- intersect(proteins_s1, proteins_s2)
-
-biomarker_sstar <- biomarker_clean %>%
-  select(group, any_of(proteins_sstar)) %>%
-  mutate(class = (group == 'ASD')) %>%
-  select(-group)
-
-# partition into training and test set
-biomarker_split <- biomarker_sstar %>%
-  initial_split(prop = 0.8)
-
 # fit logistic regression model to training set
-fit <- glm(class ~ ., 
-           data = training(biomarker_split), 
+
+train.fit <- glm(class ~ ., 
+           data = biomarker_train |> mutate(class = (group == "ASD")) |> select(class, all_of(fuzzy_intersect)) , 
            family = 'binomial')
 
 # evaluate errors on test set
@@ -305,16 +349,91 @@ class_metrics <- metric_set(sensitivity,
                             accuracy,
                             roc_auc)
 
-testing(biomarker_split) %>%
-  add_predictions(fit, type = 'response') %>% 
+Q3_metrics <- biomarker_test |>
+  add_predictions(train.fit, type = 'response') |>
   mutate(estimate = factor(pred >0.5, levels = c(FALSE, TRUE)),
+         class = (group == "ASD"),
          truth = factor(class, levels = c(FALSE, TRUE))) %>%
   class_metrics(estimate = estimate,
               truth = truth, pred,
               event_level = 'second')
 
+original_metrics
+
+Q3_metrics
+
+split_dat_ROC <- biomarker_test |>
+  add_predictions(train.fit, type = 'response') |>
+  mutate(truth = factor(group == "ASD", levels = c(FALSE, TRUE))) |>
+  roc_curve(
+    truth = truth, pred,
+    event_level = 'second'
+  ) %>%
+  ggplot(aes(x=1-specificity, y=sensitivity)) +
+  geom_path(color = "red") +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") + 
+  labs(
+    title = "Split Data ROC Curve",
+    x = "False Positive Rate",
+    y = "True Positive Rate"
+  )
+
+split_dat_auc <- biomarker_test |>
+  add_predictions(train.fit, type = 'response') |>
+  mutate(truth = factor(group == "ASD", levels = c(FALSE, TRUE))) |>
+  roc_auc(
+    truth = truth, pred,
+    event_level = 'second'
+  ) 
 
 
+
+og_dat_ROC <- testing(biomarker_split) %>%
+  add_predictions(fit, type = 'response') %>% 
+  mutate(estimate = factor(pred >0.5, levels = c(FALSE, TRUE)),
+         truth = factor(class, levels = c(FALSE, TRUE))) %>%
+  roc_curve(
+    truth = truth, pred, event_level = 'second')%>%
+  ggplot(aes(x=1-specificity, y=sensitivity)) +
+  geom_path(color = "blue") +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") + 
+  labs(
+    title = "Original ROC Curve",
+    x = "False Positive Rate",
+    y = "True Positive Rate"
+  )
+
+og_dat_auc <- testing(biomarker_split) |>
+  add_predictions(fit, type = 'response') |>
+  mutate(truth = factor(class, levels = c(FALSE, TRUE))) |>
+  roc_auc( 
+    truth = truth, pred, event_level = 'second')
+
+
+
+### COMPARISON
+
+original_metrics
+
+Q3_metrics
+
+
+split_dat_ROC
+og_dat_ROC
+
+
+split_dat_auc
+og_dat_auc
+
+ggsave(filename = "../../results/figures/split_dat_ROC.jpg", split_dat_ROC)
+ggsave(filename = "../../results/figures/og_dat_ROC.jpg", og_dat_ROC)
+```
+
+
+```{r modeling}
+# Potential methods to improve or replicate the original modeling:
+# Random Forest
+# Lasso Regression
 
 partition <- biomarker_clean %>%
   initial_split(prop = 0.8)
