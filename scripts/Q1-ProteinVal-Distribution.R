@@ -1,7 +1,12 @@
-setwd("C:/Users/Felix/Documents/GitHub/module1-biomarker-team2/scripts")
-load("../data/biomarker-clean.RData")
+library(tidyverse)
+library(ggplot2)
+library(readr)
 
-var_names <- read_csv('../data/biomarker-raw.csv', 
+load("../data/biomarker-clean.RData")
+# Change the path if your working directory is different
+raw_path <- '../data/biomarker-raw.csv'
+
+var_names <- read_csv(raw_path, 
                       col_names = F, 
                       n_max = 2, 
                       col_select = -(1:2)) %>%
@@ -19,7 +24,7 @@ trim <- function(x, .at){
 
 
 # Omit any of the log transformation and trimming
-biomarker_raw <- read_csv('../data/biomarker-raw.csv', 
+biomarker_raw <- read_csv(raw_path, 
                                 skip = 2,
                                 col_select = -2L,
                                 col_names = c('group', 
