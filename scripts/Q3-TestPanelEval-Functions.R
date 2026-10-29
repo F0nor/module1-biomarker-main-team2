@@ -5,6 +5,7 @@ library(yardstick)
 library(randomForest)
 library(infer)
 load("../data/biomarker_clean.RData")
+set.seed(101422)
 
 partition <- biomarker_clean %>%
   initial_split(prop = 0.8)

@@ -235,7 +235,7 @@ OutDist_byGroup <- outliers_cnt |>
   )
 
 ggsave(filename = "../../results/figures/OutDist_byGroup.jpg", OutDist_byGroup)
-
+OutDist_byGroup
 outliers_cnt |>
   group_by(group) |>
   summarise(min = min(n_out),
@@ -429,8 +429,9 @@ ggsave(filename = "../../results/figures/split_dat_ROC.jpg", split_dat_ROC)
 ggsave(filename = "../../results/figures/og_dat_ROC.jpg", og_dat_ROC)
 ```
 
-```{r generalize Q3}
+```{r generalize Q3 functions and comparing methods for Q4}
 # For training
+set.seed(101422)
 
 partition <- biomarker_clean %>%
   initial_split(prop = 0.8)
@@ -477,6 +478,7 @@ train.predictors <- biomarker_train %>%
 
 train.response <- biomarker_train %>% pull(group) %>% factor()
 
+
 # fit RF
 train.rf_out <- randomForest(x = train.predictors, 
                        y = train.response, 
@@ -484,7 +486,7 @@ train.rf_out <- randomForest(x = train.predictors,
                        importance = T)
 
 
-panels <- function(n){
+train.panels <- function(n){
   ttest_proteins <- train.ttests_out |> slice_min(p.adj, n=n) |> pull(protein)
   rf_proteins <- train.rf_out$importance |> as_tibble() |>
   mutate(protein = rownames(rf_out$importance)) |> slice_max(MeanDecreaseGini, n = n) |> pull(protein)
@@ -494,7 +496,7 @@ panels <- function(n){
   list(hard = hard, fuzzy = fuzzy)
 }
 
-evaluate <- function(panel){
+train.evaluate <- function(panel){
   
   fit <- glm(class ~., data = biomarker_train |> mutate(class = (group == "ASD")) |> select(class, all_of(panel)), family = 'binomial')
   
@@ -502,23 +504,45 @@ evaluate <- function(panel){
                             specificity, 
                             accuracy,
                             roc_auc)
+}
   
-  biomarker_test |> 
+panels <- function(n){
+  ttest_proteins <- ttests_out |> slice_min(p.adj, n=n) |> pull(protein)
+  rf_proteins <- rf_out$importance |> as_tibble() |>
+  mutate(protein = rownames(rf_out$importance)) |> slice_max(MeanDecreaseGini, n = n) |> pull(protein)
+  
+  fuzzy <- union(ttest_proteins, rf_proteins)
+  hard <- intersect(ttest_proteins, rf_proteins)
+  list(hard = hard, fuzzy = fuzzy)
+}
+
+evaluate <- function(panel){
+  
+  fit <- glm(class ~., data = training(biomarker_split), family = 'binomial')
+  
+  class_metrics <- metric_set(sensitivity, 
+                            specificity, 
+                            accuracy,
+                            roc_auc)
+  
+  testing(biomarker_split) |> 
     add_predictions(fit, type = 'response') |>
     mutate(estimate = factor(pred > 0.5, levels = c(FALSE, TRUE)),
-           class = (group == "ASD"),
            truth = factor(class, levels = c(FALSE, TRUE))) |>
     class_metrics(estimate = estimate, truth = truth, pred, event_level = 'second')
 }
 
 
-results <- map(c(5,10, 15, 20, 25, 30), function(n){
+list_ns <- c(10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60)
+
+Q3.results <- map(list_ns, function(n){
   # get the panel of n proteins 
-  p <- panels(n)
+  p <- train.panels(n)
   
   # iterate through the panels by type
   map(names(p), function(type){
-    metrics <- evaluate(p[[type]])
+    metrics <- train.evaluate(p[[type]])
+    proteins <- p[[type]]
     # if empty then return NULL
     if (is.null(metrics)) return (NULL)
     
@@ -527,24 +551,67 @@ results <- map(c(5,10, 15, 20, 25, 30), function(n){
     
     # Add descriptive columns to differentiate metrics
     metrics |>
-      mutate(type = type, n = n, length = length)
+      mutate(type = type, n = n, length = length, panel = list(proteins)) 
   }) |> list_rbind() 
 }) |> list_rbind() # combine each list by rows into one data frame
 
-results 
+results <- map(list_ns, function(n){
+  # get the panel of n proteins 
+  p <- panels(n)
+  
+  # iterate through the panels by type
+  map(names(p), function(type){
+    metrics <- evaluate(p[[type]])
+    proteins <- p[[type]]
+    # if empty then return NULL
+    if (is.null(metrics)) return (NULL)
+    
+    # How many proteins captured by fuzzy or hard intersect
+    length <- length(p[[type]])
+    
+    # Add descriptive columns to differentiate metrics
+    metrics |>
+      mutate(type = type, n = n, length = length, panel = list(proteins)) 
+  }) |> list_rbind() 
+}) |> list_rbind() # combine each list by rows into one data frame
+
+
+
+original_accuracy <- original_metrics[original_metrics$.metric == "accuracy",]$.estimate
+
+results
+Q3.results
+
+
+# results are the panels without training data
+results |>
+  filter(`.estimate` >= original_accuracy & `.metric` == "accuracy") |>
+  arrange(desc(.estimate))
+  
+# Q3.results are the panels with training data used during RF and ttests
+Q3.results |>
+  filter(`.estimate` >= original_accuracy & `.metric` == "accuracy") |>
+  arrange(desc(.estimate))
+
+# We see that with n = 10, hard intersection, and using training data for RF and ttests we have 
+# 2 proteins and a better accuracy score
+simp_betterAC_panel <- Q3.results |>
+  filter(`.estimate` >= original_accuracy & `.metric` == "accuracy") |>
+  
+  head(1) |>
+  pull(panel)
+
+ Q3.results |>
+  filter(`.estimate` >= original_accuracy & `.metric` == "accuracy") |>
+  head(1) |>
+  unnest(panel)
+
+simp_betterAC_panel
 
 original_metrics
 ```
 
 
-
-```{r Comparing methods to imrpove or replicate og modeling}
-# Potential methods to improve or replicate the original modeling:
-# Random Forest
-# Lasso Regression
-
-
-```
 
 
 
