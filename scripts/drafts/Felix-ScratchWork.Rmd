@@ -126,6 +126,8 @@ original_metrics <- testing(biomarker_split) %>%
               truth = truth, pred,
               event_level = 'second')
 
+biomarker_clean
+
 ```
 
 ```{r look at distribution of protein values}
@@ -439,6 +441,8 @@ partition <- biomarker_clean %>%
 biomarker_train <- training(partition)
 biomarker_test <- testing(partition)
 
+
+
 # function to compute tests
 test_fn <- function(.df){
   t_test(.df, 
@@ -447,6 +451,49 @@ test_fn <- function(.df){
          alternative = 'two-sided',
          var.equal = F)
 }
+
+ttests_out <- biomarker_clean %>%
+  # drop ADOS score
+  select(-ados) %>%
+  # arrange in long format
+  pivot_longer(-group, 
+               names_to = 'protein', 
+               values_to = 'level') %>%
+  # nest by protein
+  nest(data = c(level, group)) %>% 
+  # compute t tests
+  mutate(ttest = map(data, test_fn)) %>%
+  unnest(ttest) %>%
+  # sort by p-value
+  arrange(p_value) %>%
+  # multiple testing correction
+  mutate(m = n(),
+         hm = log(m) + 1/(2*m) - digamma(1),
+         rank = row_number(),
+         p.adj = m*hm*p_value/rank)
+
+# select significant proteins
+proteins_s1 <- ttests_out %>%
+  slice_min(p.adj, n = 10) %>%
+  pull(protein)
+
+## RANDOM FOREST
+##################
+
+# store predictors and response separately
+predictors <- biomarker_clean %>%
+  select(-c(group, ados))
+
+response <- biomarker_clean %>% pull(group) %>% factor()
+
+# fit RF
+set.seed(101422)
+rf_out <- randomForest(x = predictors, 
+                       y = response, 
+                       ntree = 1000, 
+                       importance = T)
+
+###### Training partition modification
 
 
 train.ttests_out <- biomarker_train %>%
@@ -469,6 +516,8 @@ train.ttests_out <- biomarker_train %>%
          rank = row_number(),
          p.adj = m*hm*p_value/rank)
 
+
+
 ## RANDOM FOREST
 ##################
 
@@ -480,23 +529,48 @@ train.response <- biomarker_train %>% pull(group) %>% factor()
 
 
 # fit RF
+set.seed(101422)
 train.rf_out <- randomForest(x = train.predictors, 
                        y = train.response, 
                        ntree = 1000, 
                        importance = T)
 
+# Actual fuzzy intersection: k rank membership
+fuzzy_panel <- function(n, ttests, rf, thresh = 0.25){
+  mem <- function(rank) pmax(0, 1 - (rank - 1) / (2 * n))
 
-train.panels <- function(n){
+  t_rank <- ttests |>
+    arrange(p.adj) |>
+    transmute(protein, m_t = mem(row_number()))
+
+  r_rank <- rf$importance |>
+    as_tibble(rownames = "protein") |>
+    arrange(desc(MeanDecreaseGini)) |>
+    transmute(protein, m_r = mem(row_number()))
+
+  inner_join(t_rank, r_rank, by = "protein") |>
+    mutate(m = pmin(m_t, m_r)) |>
+    filter(m >= thresh) |>
+    pull(protein)
+}
+
+
+get_train_panels <- function(n){
   ttest_proteins <- train.ttests_out |> slice_min(p.adj, n=n) |> pull(protein)
   rf_proteins <- train.rf_out$importance |> as_tibble() |>
-  mutate(protein = rownames(rf_out$importance)) |> slice_max(MeanDecreaseGini, n = n) |> pull(protein)
+  mutate(protein = rownames(train.rf_out$importance)) |> slice_max(MeanDecreaseGini, n = n) |> pull(protein)
   
-  fuzzy <- union(ttest_proteins, rf_proteins)
+  
+  fuzzy <- fuzzy_panel(n, train.ttests_out, train.rf_out)
   hard <- intersect(ttest_proteins, rf_proteins)
   list(hard = hard, fuzzy = fuzzy)
 }
 
-train.evaluate <- function(panel){
+
+
+evaluate <- function(panel){
+  
+  if(length(panel) == 0) return(NULL) # Just in case panel has no proteins
   
   fit <- glm(class ~., data = biomarker_train |> mutate(class = (group == "ASD")) |> select(class, all_of(panel)), family = 'binomial')
   
@@ -504,44 +578,40 @@ train.evaluate <- function(panel){
                             specificity, 
                             accuracy,
                             roc_auc)
-}
   
-panels <- function(n){
-  ttest_proteins <- ttests_out |> slice_min(p.adj, n=n) |> pull(protein)
-  rf_proteins <- rf_out$importance |> as_tibble() |>
-  mutate(protein = rownames(rf_out$importance)) |> slice_max(MeanDecreaseGini, n = n) |> pull(protein)
-  
-  fuzzy <- union(ttest_proteins, rf_proteins)
-  hard <- intersect(ttest_proteins, rf_proteins)
-  list(hard = hard, fuzzy = fuzzy)
-}
-
-evaluate <- function(panel){
-  
-  fit <- glm(class ~., data = training(biomarker_split), family = 'binomial')
-  
-  class_metrics <- metric_set(sensitivity, 
-                            specificity, 
-                            accuracy,
-                            roc_auc)
-  
-  testing(biomarker_split) |> 
+  biomarker_test |> 
     add_predictions(fit, type = 'response') |>
     mutate(estimate = factor(pred > 0.5, levels = c(FALSE, TRUE)),
+           class = (group == "ASD"),
            truth = factor(class, levels = c(FALSE, TRUE))) |>
     class_metrics(estimate = estimate, truth = truth, pred, event_level = 'second')
 }
 
 
-list_ns <- c(10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60)
+
+  
+get_full_panels <- function(n){
+  ttest_proteins <- ttests_out |> slice_min(p.adj, n=n) |> pull(protein)
+  rf_proteins <- rf_out$importance |> as_tibble() |>
+  mutate(protein = rownames(rf_out$importance)) |> slice_max(MeanDecreaseGini, n = n) |> pull(protein)
+  
+  fuzzy <- fuzzy_panel(n, ttests_out, rf_out)
+  hard <- intersect(ttest_proteins, rf_proteins)
+  list(hard = hard, fuzzy = fuzzy)
+}
+
+
+
+
+list_ns <- c(10, 15, 20, 25, 30, 35)
 
 Q3.results <- map(list_ns, function(n){
   # get the panel of n proteins 
-  p <- train.panels(n)
+  p <- get_train_panels(n)
   
   # iterate through the panels by type
   map(names(p), function(type){
-    metrics <- train.evaluate(p[[type]])
+    metrics <- evaluate(p[[type]])
     proteins <- p[[type]]
     # if empty then return NULL
     if (is.null(metrics)) return (NULL)
@@ -557,7 +627,7 @@ Q3.results <- map(list_ns, function(n){
 
 results <- map(list_ns, function(n){
   # get the panel of n proteins 
-  p <- panels(n)
+  p <- get_full_panels(n)
   
   # iterate through the panels by type
   map(names(p), function(type){
@@ -578,37 +648,65 @@ results <- map(list_ns, function(n){
 
 
 original_accuracy <- original_metrics[original_metrics$.metric == "accuracy",]$.estimate
-
 results
 Q3.results
 
+# combine into one data frame
 
-# results are the panels without training data
-results |>
-  filter(`.estimate` >= original_accuracy & `.metric` == "accuracy") |>
-  arrange(desc(.estimate))
-  
-# Q3.results are the panels with training data used during RF and ttests
-Q3.results |>
-  filter(`.estimate` >= original_accuracy & `.metric` == "accuracy") |>
-  arrange(desc(.estimate))
+all_results <- bind_rows(
+  results |> mutate(source = "full data"),
+  Q3.results |> mutate(source = "split data")
+)
 
-# We see that with n = 10, hard intersection, and using training data for RF and ttests we have 
-# 2 proteins and a better accuracy score
-simp_betterAC_panel <- Q3.results |>
+# results ranked
+all_results |>
   filter(`.estimate` >= original_accuracy & `.metric` == "accuracy") |>
-  
+  arrange(desc(.estimate), length)
+
+# split data is more honest
+
+all_results |>
+  filter(source == "split data" & `.estimate` & .metric %in% c("accuracy", "roc_auc")) |>
+  select(type, n, length, .metric, .estimate) |>
+  pivot_wider(names_from = .metric, values_from = .estimate) |>
+  arrange(desc(accuracy), desc(roc_auc), length)
+
+split.simp_betterAC_panel_proteins <- all_results |>
+  filter(source == "split data" & `.estimate` >= original_accuracy & `.metric` == "accuracy") |>
+  arrange(desc(.estimate), length) |>
   head(1) |>
-  pull(panel)
+  pull(panel) |> pluck(1)
 
- Q3.results |>
-  filter(`.estimate` >= original_accuracy & `.metric` == "accuracy") |>
+split.simp_betterAC_panel <- all_results |>
+  filter(source == "split data" & `.estimate` >= original_accuracy & `.metric` %in% c("accuracy") ) |>
+  arrange(desc(.estimate), length) |>
+  head(1)
+
+
+full.simp_betterAC_panel_proteins <- all_results |>
+  filter(source == "full data" & `.estimate` >= original_accuracy & `.metric` == "accuracy") |>
+  arrange(desc(.estimate), length) |>
   head(1) |>
-  unnest(panel)
+  pull(panel) |> pluck(1)
 
-simp_betterAC_panel
+full.simp_betterAC_panel <- all_results |>
+  filter(source == "full data" & `.estimate` >= original_accuracy & `.metric` %in% c("accuracy") ) |>
+  arrange(desc(.estimate), length) |>
+  head(1)
+
+
+split.simp_betterAC_panel
+full.simp_betterAC_panel
+
+# proteins_sstar is the original panel
+
+setdiff(split.simp_betterAC_panel_proteins, proteins_sstar)
+
+simp_betterAC_panel_proteins
+proteins_sstar
 
 original_metrics
+
 ```
 
 

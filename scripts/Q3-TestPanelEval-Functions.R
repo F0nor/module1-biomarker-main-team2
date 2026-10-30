@@ -4,7 +4,7 @@ library(modelr)
 library(yardstick)
 library(randomForest)
 library(infer)
-load("../data/biomarker_clean.RData")
+load("../data/biomarker-clean.RData")
 set.seed(101422)
 
 partition <- biomarker_clean %>%
@@ -53,23 +53,48 @@ train.predictors <- biomarker_train %>%
 train.response <- biomarker_train %>% pull(group) %>% factor()
 
 # fit RF
+set.seed(101422)
 train.rf_out <- randomForest(x = train.predictors, 
                        y = train.response, 
                        ntree = 1000, 
                        importance = T)
 
 
-panels <- function(n){
+fuzzy_panel <- function(n, ttests, rf, thresh = 0.25){
+  mem <- function(rank) pmax(0, 1 - (rank - 1) / (2 * n))
+  
+  t_rank <- ttests |>
+    arrange(p.adj) |>
+    transmute(protein, m_t = mem(row_number()))
+  
+  r_rank <- rf$importance |>
+    as_tibble(rownames = "protein") |>
+    arrange(desc(MeanDecreaseGini)) |>
+    transmute(protein, m_r = mem(row_number()))
+  
+  inner_join(t_rank, r_rank, by = "protein") |>
+    mutate(m = pmin(m_t, m_r)) |>
+    filter(m >= thresh) |>
+    pull(protein)
+}
+
+
+get_train_panels <- function(n){
   ttest_proteins <- train.ttests_out |> slice_min(p.adj, n=n) |> pull(protein)
   rf_proteins <- train.rf_out$importance |> as_tibble() |>
-    mutate(protein = rownames(rf_out$importance)) |> slice_max(MeanDecreaseGini, n = n) |> pull(protein)
+    mutate(protein = rownames(train.rf_out$importance)) |> slice_max(MeanDecreaseGini, n = n) |> pull(protein)
   
-  fuzzy <- union(ttest_proteins, rf_proteins)
+  
+  fuzzy <- fuzzy_panel(n, train.ttests_out, train.rf_out)
   hard <- intersect(ttest_proteins, rf_proteins)
   list(hard = hard, fuzzy = fuzzy)
 }
 
+
+
 evaluate <- function(panel){
+  
+  if(length(panel) == 0) return(NULL) # Just in case panel has no proteins
   
   fit <- glm(class ~., data = biomarker_train |> mutate(class = (group == "ASD")) |> select(class, all_of(panel)), family = 'binomial')
   
@@ -89,7 +114,7 @@ evaluate <- function(panel){
 
 Q3_results <- map(c(5,10, 15, 20, 25, 30), function(n){
   # get the panel of n proteins 
-  p <- panels(n)
+  p <- get_train_panels(n)
   
   # iterate through the panels by type
   map(names(p), function(type){

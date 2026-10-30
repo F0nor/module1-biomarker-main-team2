@@ -23,7 +23,7 @@ library(tidyverse)
 
 ## Abstract
 
-Write a brief one-paragraph abstract that describes the contents of your write-up.
+In this reproduced analysis, we utilized the existing database of serum data from Hewitson et al. (2001) which proposed a panel proteins that were meant to distinguish boys with autism spectrum disorder (ASD) and those that were typically developing (TD). The data consisted of 154 subjects and 1,317 proteins. We reproduced a simplified workflow of the published analysis, and made multiple modifications in the methodology to examine the sensitivity the accuracy classification as we made those changes. We noted that the log-transformation applied to the data centered the raw protein values to zero, which were heavily right-skewed. Subjects with their number of outliers were compared to each other by group, and found that there were a handful that were outliers from their group, but there was not a large enough number of subjects to skew one group or another. Modifications to the methodology which included training models with a training partition of the data, choosing a higher selection of predictive proteins, and using a fuzzy intersection rather than a hard intersection, yielded a lower AUROC score compared to the original simplified analysis. Combinations of methods were attempted to find a better accuracy classification score, and discovered that a combination of using training partitioned data for the selection procedure, and fuzzy intersection led to a similar panel of 5 proteins which had the same classification accuracy (0.8387097). Without the split data and with a hard intersection, a panel of 7 proteins were created with a very optimistic classification accuracy (0.9354839).
 
 ## Dataset
 
@@ -47,4 +47,4 @@ Task 3
 
 ### Improved classifier
 
-Task 4
+With the combinations of split data, fuzzy intersection, and a selection of 10 predictive proteins, our classifier could only achieve a panel of 5 proteins with the same accuracy score as the original analysis which was 0.8387097. Without split data and with a hard intersection, the next best accuracy score achieved was 0.9354839 with a panel of 7 proteins, which is significantly higher than the original. However, as established in examining the methodological variations, models without the split data provided highly optimistic accuracy scores which should warrant suspicion of the improvement. Therefore, the best panel achieved from spliting data and using a fuzzy intersection. could not simplify further from 5 proteins and achieve a better accuracy score than the original .
