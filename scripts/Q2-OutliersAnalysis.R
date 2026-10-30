@@ -1,6 +1,10 @@
 library(tidyverse)
 library(ggplot2)
 
+# Navigate to the folder on your computer containing this repo in the "Files" window
+# (it would say something like "Home > Desktop > (whatever folder you have the repo in) > module1-biomarker-team2")
+#. Then, click "More" -> "Set as Working Directory", so you can run the lines below:
+
 var_names <- read_csv('../data/biomarker-raw.csv', 
                       col_names = F, 
                       n_max = 2, 
@@ -32,6 +36,10 @@ biomarker_clean_out <- read_csv('../data/biomarker-raw.csv',
                 ~ scale(log10(.x)))) %>%
   # reorder columns
   select(group, ados, everything())
+
+# Save the data
+save(list = 'biomarker_clean_out', 
+     file = '../data/biomarker-clean_no_trim.RData')
 
 # Find outliers in the untrimmed data
 outliers <- biomarker_clean_out |>

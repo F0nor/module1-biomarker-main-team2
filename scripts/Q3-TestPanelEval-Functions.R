@@ -4,6 +4,11 @@ library(modelr)
 library(yardstick)
 library(randomForest)
 library(infer)
+
+# Navigate to the folder on your computer containing this repo in the "Files" window
+# (it would say something like "Home > Desktop > (whatever folder you have the repo in) > module1-biomarker-team2")
+#. Then, click "More" -> "Set as Working Directory", so you can run the lines below:
+
 load("../data/biomarker-clean.RData")
 set.seed(101422)
 

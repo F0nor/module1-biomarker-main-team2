@@ -4,12 +4,19 @@ library(modelr)
 library(yardstick)
 library(randomForest)
 library(infer)
-load("../data/biomarker-clean.RData")
-source("Q3-TestPanelEval-Functions.R")
-source("inclass-analysis.R")
+
+# Navigate to the folder on your computer containing this repo in the "Files" window
+# (it would say something like "Home > Desktop > (whatever folder you have the repo in) > module1-biomarker-team2")
+#. Then, click "More" -> "Set as Working Directory", so you can run the lines below:
+
+load("../data/biomarker-clean.RData") 
+source("../scripts/Q3-TestPanelEval-Functions.R")
+source("../scripts/inclass-analysis.R")
 
 # For training
 set.seed(101422)
+
+## With Trimming (Felix)
 
 partition <- biomarker_clean %>%
   initial_split(prop = 0.8)
@@ -126,3 +133,5 @@ full.simp_betterAC_panel <- all_results |>
 
 save(list = "all_results", file = "../data/all_results.RData" )
 
+
+## Without Trimming (Hannah)

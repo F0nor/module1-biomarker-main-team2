@@ -2,6 +2,10 @@ library(tidyverse)
 library(ggplot2)
 library(readr)
 
+# Navigate to the folder on your computer containing this repo in the "Files" window
+# (it would say something like "Home > Desktop > (whatever folder you have the repo in) > module1-biomarker-team2")
+#. Then, click "More" -> "Set as Working Directory", so you can run the lines below:
+
 load("../data/biomarker-clean.RData")
 # Change the path if your working directory is different
 raw_path <- '../data/biomarker-raw.csv'
