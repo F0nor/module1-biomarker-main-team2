@@ -882,6 +882,7 @@ for (i in num1){
   }
 }
 # write.csv(finalResults, file = '../data/Q3v2_results.csv')
+
 finalResults
 ```
 ```{r}
@@ -890,10 +891,12 @@ finalResults
 #Generally models perform best with a decent amount of proteins but not too many proteins
 plot(finalResults[finalResults$intersection != 'Fuzzy' &  finalResults$.metric == 'roc_auc',]$.estimate ~ finalResults[finalResults$intersection != 'Fuzzy' &  finalResults$.metric == 'roc_auc',]$total_proteins,
      main = 'Comparing AUC Values to Protein Count for Hard Intersection', ylab = 'AUC', xlab = 'Protein Count')
+finalResults[finalResults$intersection != 'Fuzzy' & finalResults$.metric == 'roc_auc',]$total_proteins
 
 plot(finalResults[finalResults$intersection != 'Hard' &  finalResults$.metric == 'roc_auc',]$.estimate ~ finalResults[finalResults$intersection != 'Hard' &  finalResults$.metric == 'roc_auc',]$total_proteins,
      main = 'Comparing AUC Values to Protein Count for Fuzzy Intersection', ylab = 'AUC', xlab = 'Protein Count')
 
+finalResults[finalResults$intersection != 'Hard' & finalResults$.metric == 'roc_auc',]$total_proteins
 #Shows that Fuzzy intersection on average performs worse in general
 boxplot(finalResults[finalResults$.metric == 'roc_auc',]$.estimate ~ finalResults[finalResults$.metric == 'roc_auc',]$intersection,
         main = 'Comparing AUC Values to Intersection Type', ylab = 'AUC', xlab = 'Intersection Types')
@@ -909,7 +912,7 @@ finalResults_rearange <- finalResults %>%
   select(.metric, .estimate, proteins_s1, proteins_s2, total_proteins, intersection)
 
 finalResults_rearange
-head(finalResults_rearange[,c(1,4,5,6,7,8)], n = 20)
+
 kable(head(finalResults_rearange, n = 20), 
       col.names = c('Metric', 
                     'Estimte', 

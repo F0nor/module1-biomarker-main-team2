@@ -69,7 +69,7 @@ finalResults_rearange <- finalResults %>%
   arrange(desc(group_auc), proteins_s1,	proteins_s2, intersection)
 kable(head(finalResults_rearange[,c(2,4,5,6,7,8)], n = 20), 
       col.names = c('Metric', 
-                    'Estimte', 
+                    'Estimate', 
                     'Proteins T-test', 
                     'Proteins Random Forest', 
                     'Total Proteins', 
@@ -94,10 +94,12 @@ finalResults_rearange <- finalResults %>%
   group_by(proteins_s1,	proteins_s2, intersection) %>%
   mutate(group_auc = .estimate[.metric == 'accuracy']) %>%
   ungroup() %>%
-  arrange(desc(group_auc), proteins_s1,	proteins_s2, intersection)
-kable(head(finalResults_rearange[,c(2,4,5,6,7,8)], n = 20), 
+  arrange(desc(group_auc), proteins_s1,	proteins_s2, intersection) |>
+  select(.metric, .estimate, proteins_s1, proteins_s2, total_proteins, intersection)
+
+kable(head(finalResults_rearange, n = 20), 
       col.names = c('Metric', 
-                    'Estimate', 
+                    'Estimte', 
                     'Proteins T-test', 
                     'Proteins Random Forest', 
                     'Total Proteins', 
@@ -111,7 +113,6 @@ The scatter plots and box plots for accuracy (not shown) depict a similar trend 
 
 To find an improved classifier with a simpler panel for comparable or improved accuracy, we experimented with split data, fuzzy intersection, and selection of 10 predictive proteins. Our analysis is separated into two parts, trimmed and untrimmed data. With trimmed data, our classifier could only achieve a panel of 5 proteins with the same accuracy score as the original analysis (0.8387097). The 5 main proteins within the panel were DERM, RELT, MRC2, IgD, and Cadherin-5. Without split data and with a hard intersection, the next best accuracy score achieved was 0.9354839 with a panel of 7 proteins, which is significantly higher than the original. The 7 main proteins were again DERM, RELT, MRC2, IgD, PTN, Cadherin-5, and Notch 1. However, as established in examining the methodological variations, models without the split data provided highly optimistic accuracy scores which should warrant suspicion of the improvement. Therefore, the best panel achieved from splitting data and using a fuzzy intersection. We could not simplify further from 5 proteins and achieve a better accuracy score than the original model.
 
-
 ```{r}
 #| echo: false
 #| fig-align: center
@@ -119,9 +120,7 @@ To find an improved classifier with a simpler panel for comparable or improved a
 knitr::include_graphics("figures/trimmed_top10.png")
 ```
 
-
 Next, we worked with untrimmed data, which avoided modifying protein's levels whose z-score exceeded +/- 3. With untrimmed data and splitting, the results are nearly identical to those of the trimmed data. The conclusion is the same, where the classifier achieves a similar accuracy to the original analysis with a panel of 5 proteins. The 5 proteins are DERM, IgD, TSP4, PTN, and FSTL1. Unlike the trimmed data, the best accuracy achieved without splitting the data is 0.871 using hard intersection and a panel of 6 proteins, DERM, RELT, MRC2, IgD, PTN, and Cadherin-5. The accuracy does not significantly improve compared to the original analysis'. This suggests that the trimmed data plays a bigger role in improving the accuracy of the classifier on the full dataset. But as stated earlier, this slightly biases the classifier, making it an inaccurate representation of how well it generalizes to unseen data. Therefore, trimming versus untrimming the data does not significantly impact the classifier's ability to provide accurate predictions when splitting the data.
-
 
 ```{r}
 #| echo: false
@@ -129,4 +128,3 @@ Next, we worked with untrimmed data, which avoided modifying protein's levels wh
 #| out-width: "30%"
 knitr::include_graphics("figures/untrimmed_top10.png")
 ```
-

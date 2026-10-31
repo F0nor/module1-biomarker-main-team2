@@ -81,6 +81,27 @@ rf_out <- randomForest(x = predictors,
 rf_out$confusion
 ```
 
+```{r fuzzy function}
+fuzzy_panel <- function(n, ttests, rf, thresh = 0.25){
+  mem <- function(rank) pmax(0, 1 - (rank - 1) / (2 * n))
+
+  t_rank <- ttests |>
+    arrange(p.adj) |>
+    transmute(protein, m_t = mem(row_number()))
+
+  r_rank <- rf$importance |>
+    as_tibble(rownames = "protein") |>
+    arrange(desc(MeanDecreaseGini)) |>
+    transmute(protein, m_r = mem(row_number()))
+
+  inner_join(t_rank, r_rank, by = "protein") |>
+    mutate(m = pmin(m_t, m_r)) |>
+    filter(m >= thresh) |>
+    pull(protein)
+}
+```
+
+
 ```{r}
 #Model Generator function used later for testing several combinations of parameters
 modelGenerators <- function(num1, num2, intersection = FALSE){
@@ -98,9 +119,9 @@ modelGenerators <- function(num1, num2, intersection = FALSE){
   
   # select subset of interest
   proteins_hard <- intersect(proteins_s1, proteins_s2)
-  proteins_fuzzy <- union(proteins_s1, proteins_s2)
+  proteins_fuzzy <- fuzzy_panel(num1, ttests_out, rf_out)
   if (intersection){
-    proteins <- union(proteins_s1, proteins_s2)
+    proteins <- fuzzy_panel(num1, ttests_out, rf_out)
   }
   else{
     proteins <- intersect(proteins_s1, proteins_s2)
