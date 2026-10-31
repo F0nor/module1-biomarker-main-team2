@@ -45,13 +45,7 @@ To look at outliers, we removed the trimming step from preprocessing and counted
 
 To see how the model could be improved, we experimented with several adjustments and compared the results of several variations of the model to find what worked best. The first adjustment to the model we made was to partition the data into a training and test data set before any processing. In the original model, this step was made after the optimal set of proteins was selected, meaning that the test sample influenced this decision. Moving this step to the start and basing all calculations and decisions solely on the training data set ensures that this does not happen. While this resulted in a decrease in the model's accuracy, specificity, sensitivity, and ROC AUC, doing this prevents the protein selection to be biased to include the data in the test data sets and ensures the resulting metric are not overly optimistic.
 
-We also adjusted the number of proteins chosen for analysis. The proteins were selected through two separate methods in the original model, and later combined using the intersection of both selections. For our new model, we tested different combinations of the number of proteins being selected from each model, like five from the. On top hat, each combination of proteins was tested with
-
-\
-
-choose a larger number (more than ten) of top predictive proteins using each selection method
-
-\
+We also adjusted the number of proteins chosen for analysis. The proteins were selected through two separate methods in the original model, and later combined using the intersection of both selections. For our new model, we tested different combinations of the number of proteins being selected from each model, like five from the. On top of that, each combination of proteins was tested with both with a hard intersection, like the original model where only proteins from both selections are used, and a fuzzy intersection, which uses all the proteins selected.
 
 Increasing the number generally saw an increase in  all metrics to an extent
 
@@ -62,11 +56,6 @@ Models with around 20 for both categories around 10 if hard intersection and 
 Similar numbers from both methods, over-weighting one method more
 
 \
-
-use a fuzzy intersection instead of a hard intersection to combine the sets of top predictive proteins across selection methods
-
-\
-
 On average, models with hard intersections outperformed those with fuzzy intersections for all metrics (accuracy, specificity, sensitivity, and ROC AUC). It is important to note that some fuzzy intersection models still managed to do better than the vast majority of other models.
 
 ### Improved classifier
