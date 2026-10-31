@@ -23,13 +23,18 @@ save(list = "all_results_combined", file = "../data/all_results_combined.RData" 
 
 library(gt)   # install.packages(c("gt", "webshot2")) if needed
 
-# Top 10 untrimmed
+# Top 10 untrimmed (only split data)
 untrimmed_top10 <- all_results_no_trim |>
   filter(source == "split data", .metric == "accuracy") |>
   arrange(desc(.estimate), length) |>
   slice_head(n = 10) |>
   select(type, n, length, accuracy = .estimate) |>
   mutate(accuracy = round(accuracy, 3))
+
+# Seeing all results
+all_results_no_trim |>
+  filter(.metric == "accuracy") |>
+  arrange(desc(.estimate), length)
 
 untrimmed_top10
 
