@@ -27,7 +27,7 @@ In this reproduced analysis, we utilized the existing database of serum data fro
 
 The data came from Hewitson et al. (2021), who collected serum samples from 154 boys aged 18 months to 8 years: 76 diagnosed with autism spectrum disorder (ASD) and 78 typically developing (TD) boys. Protein levels in each sample were measured with SomaLogic's SOMAScan 1.3K assay, which gave 1,317 proteins per subject. The data also includes each subject's group (ASD or TD) and for the ASD group, an ADOS score measuring symptom severity. The published analysis used 1,125 of the proteins after excluding 192, but our analysis keeps all 1,317.
 
-To preprocess the data, we log10-transformed each protein's raw levels, which are heavily right-skewed, and then centered and scaled each protein to z-scores. In the original pipeline, any z-score beyond +/- 3 was trimmed to +/- 3 to limit the influence of extreme values. For Q2, we also made an untrimmed version of the data so we could look at those outlying values directly. 
+To preprocess the data, we log10-transformed each protein's raw levels, which are heavily right-skewed, and then centered and scaled each protein to z-scores. In the original pipeline, any z-score beyond +/- 3 was trimmed to +/- 3 to limit the influence of extreme values. For Q2, we also made an untrimmed version of the data so we could look at those outlying values directly.
 
 ## Summary of published analysis
 

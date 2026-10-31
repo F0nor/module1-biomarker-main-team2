@@ -34,6 +34,7 @@ set.seed(1268)
 biomarker_split <- biomarker_clean %>%
   initial_split(prop = 0.8)
 
+#T test computation for protiens
 ttests_out <- training(biomarker_split) %>%
   # drop ADOS score
   select(-ados) %>%
@@ -160,7 +161,7 @@ modelGenerators <- function(num1, num2, intersection = FALSE){
 ```
 
 ```{r}
-#Testing different combinations of number of protiens and intersection type
+#Testing different combinations of number of proteins and intersection type
 num1 <- c(5, 10, 15, 20, 25, 30, 35, 40)
 num2 <- c(5, 10, 15, 20, 25, 30, 35, 40)
 finalResults <- data.frame(matrix(ncol = 7, nrow = 0))
