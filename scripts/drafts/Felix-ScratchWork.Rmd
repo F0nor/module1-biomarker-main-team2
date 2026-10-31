@@ -257,6 +257,26 @@ outliers_cnt |>
 wilcox.test(n_out ~ group, data = outliers_cnt)
 ```
 
+```{r fuzzy}
+fuzzy_panel <- function(n, ttests, rf, thresh = 0.25){
+  mem <- function(rank) pmax(0, 1 - (rank - 1) / (2 * n))
+
+  t_rank <- ttests |>
+    arrange(p.adj) |>
+    transmute(protein, m_t = mem(row_number()))
+
+  r_rank <- rf$importance |>
+    as_tibble(rownames = "protein") |>
+    arrange(desc(MeanDecreaseGini)) |>
+    transmute(protein, m_r = mem(row_number()))
+
+  inner_join(t_rank, r_rank, by = "protein") |>
+    mutate(m = pmin(m_t, m_r)) |>
+    filter(m >= thresh) |>
+    pull(protein)
+}
+```
+
 
 ```{r repeat analysis}
 set.seed(101422)
@@ -298,7 +318,7 @@ train.ttests_out <- biomarker_train %>%
          rank = row_number(),
          p.adj = m*hm*p_value/rank)
 
-n_proteins <- 20
+n_proteins <- 10
 
 # select significant proteins
 train.proteins_s1 <- ttests_out %>%
@@ -333,7 +353,7 @@ train.proteins_s2 <- rf_out$importance %>%
 
 
 hard_intersect <- intersect(train.proteins_s1, train.proteins_s2)
-fuzzy_intersect <- union(train.proteins_s1, train.proteins_s2)
+fuzzt_intersect <- fuzzy_panel(n_proteins, train.ttests_out, train.rf_out)
 
 fuzzy_intersect
 ## LOGISTIC REGRESSION
@@ -535,25 +555,6 @@ train.rf_out <- randomForest(x = train.predictors,
                        ntree = 1000, 
                        importance = T)
 
-# Actual fuzzy intersection: k rank membership
-fuzzy_panel <- function(n, ttests, rf, thresh = 0.25){
-  mem <- function(rank) pmax(0, 1 - (rank - 1) / (2 * n))
-
-  t_rank <- ttests |>
-    arrange(p.adj) |>
-    transmute(protein, m_t = mem(row_number()))
-
-  r_rank <- rf$importance |>
-    as_tibble(rownames = "protein") |>
-    arrange(desc(MeanDecreaseGini)) |>
-    transmute(protein, m_r = mem(row_number()))
-
-  inner_join(t_rank, r_rank, by = "protein") |>
-    mutate(m = pmin(m_t, m_r)) |>
-    filter(m >= thresh) |>
-    pull(protein)
-}
-
 
 get_train_panels <- function(n){
   ttest_proteins <- train.ttests_out |> slice_min(p.adj, n=n) |> pull(protein)
@@ -708,6 +709,217 @@ proteins_sstar
 original_metrics
 
 ```
+
+
+
+```{r}
+library(tidyverse)
+library(infer)
+library(randomForest)
+library(tidymodels)
+library(modelr)
+library(dplyr)
+library(yardstick)
+library(pROC)
+
+```
+
+```{r}
+## MULTIPLE TESTING
+####################
+
+# function to compute tests
+test_fn <- function(.df){
+  t_test(.df, 
+         formula = level ~ group,
+         order = c('ASD', 'TD'),
+         alternative = 'two-sided',
+         var.equal = F)
+}
+
+# partition into training and test set
+# done before any testing or protein selection to ensure all when constructing model is based entirely on the testing set and not the whole data set
+set.seed(101422)
+biomarker_split <- biomarker_clean %>%
+  initial_split(prop = 0.8)
+
+#T test computation for protiens
+ttests_out <- training(biomarker_split) %>%
+  # drop ADOS score
+  select(-ados) %>%
+  # arrange in long format
+  pivot_longer(-group, 
+               names_to = 'protein', 
+               values_to = 'level') %>%
+
+# nest by protein
+nest(data = c(level, group)) %>% 
+  # compute t tests
+  mutate(ttest = map(data, test_fn)) %>%
+  unnest(ttest) %>%
+  # sort by p-value
+  arrange(p_value) %>%
+  # multiple testing correction
+  mutate(m = n(),
+         hm = log(m) + 1/(2*m) - digamma(1),
+         rank = row_number(),
+         p.adj = m*hm*p_value/rank)
+``` 
+
+
+```{r}
+## RANDOM FOREST
+##################
+
+# store predictors and response separately
+predictors <- training(biomarker_split) %>%
+  select(-c(group, ados))
+
+response <- training(biomarker_split) %>% 
+  pull(group) %>% 
+  factor()
+
+# fit RF
+set.seed(101422)
+rf_out <- randomForest(x = predictors, 
+                       y = response, 
+                       ntree = 1000, 
+                       importance = T)
+
+# check errors
+rf_out$confusion
+```
+
+```{r}
+#Model Generator function used later for testing several combinations of parameters
+modelGenerators <- function(num1, num2, intersection = FALSE){
+  proteins_s1 <- ttests_out %>%
+    slice_min(p.adj, n = num1) %>%
+    pull(protein)
+  # compute importance scores
+  proteins_s2 <- rf_out$importance %>% 
+    as_tibble() %>%
+    mutate(protein = rownames(rf_out$importance)) %>%
+    slice_max(MeanDecreaseGini, n = num2) %>%
+    pull(protein)
+  ## LOGISTIC REGRESSION
+  #######################
+  
+  # select subset of interest
+  proteins_hard <- intersect(proteins_s1, proteins_s2)
+  proteins_fuzzy <- fuzzy_panel(num1, ttests_out, rf_out)
+  if (intersection){
+    proteins <- fuzzy_panel(num1, ttests_out, rf_out)
+  }
+  else{
+    proteins <- intersect(proteins_s1, proteins_s2)
+  }
+  
+  biomarker_sstar <- training(biomarker_split) %>%
+    select(group, any_of(proteins)) %>%
+    mutate(class = (group == 'ASD')) %>%
+    select(-group)
+  
+  # fit logistic regression model to training set
+  fit <- glm(class ~ ., 
+             data = biomarker_sstar, 
+             family = 'binomial')
+  
+  testing_data <- testing(biomarker_split) %>%
+    mutate(class = (group == 'ASD'))
+  
+
+  # evaluate errors on test set
+  class_metrics <- metric_set(sensitivity, 
+                              specificity, 
+                              accuracy,
+                              roc_auc)
+  
+  output_results <- testing_data %>%
+    add_predictions(fit, type = 'response') %>% 
+    mutate(estimate = factor(pred >0.5, levels = c(FALSE, TRUE)),
+           truth = factor(class, levels = c(FALSE, TRUE))) %>%
+    class_metrics(estimate = estimate,
+                             truth = truth, pred,
+                             event_level = 'second')
+  
+  actual <- testing_data$group
+  predicted <- predict(fit, newdata = testing_data, type = 'response')
+  roc_obj <- roc(actual, predicted, levels = c("TD", "ASD"))
+  
+  plot(roc_obj, 
+     main = paste('ROC Curve:',  num1, num2, intersection, sep = ' '), 
+     col = '#1c7ed6', 
+     lwd = 3, 
+     print.auc = TRUE,
+     legacy.axes = TRUE)
+  
+  abline(a = 0, b = 1, lty = 2, col = 'darkgray')
+  
+  output_results$proteins_s1 <- c(num1, num1, num1, num1)
+  output_results$proteins_s2 <- c(num2, num2, num2, num2)
+  output_results$total_proteins <- c(length(proteins), length(proteins), length(proteins), length(proteins))
+  if (intersection){
+    output_results$intersection <- c('Fuzzy','Fuzzy','Fuzzy','Fuzzy')
+  }
+  else{
+    output_results$intersection <- c('Hard','Hard','Hard','Hard')
+  }
+  return(output_results)
+}
+```
+
+```{r}
+#Testing different combinations of number of proteins and intersection type
+num1 <- c(5, 10, 15, 20, 25, 30, 35, 40)
+num2 <- c(5, 10, 15, 20, 25, 30, 35, 40)
+finalResults <- data.frame(matrix(ncol = 7, nrow = 0))
+colnames(finalResults) <- c('.metric', '.estimator', '.estimate', 'proteins_s1', 'proteins_s2', 'total_proteins', 'intersection')
+for (i in num1){
+  for (j in num2){
+    finalResults <- rbind(finalResults, modelGenerators(i, j, FALSE))
+    finalResults <- rbind(finalResults, modelGenerators(i, j, TRUE))
+  }
+}
+# write.csv(finalResults, file = '../data/Q3v2_results.csv')
+finalResults
+```
+```{r}
+#Comparisons of AUC to different factors
+#Shows that number of proteins isn't too important for AUC
+#Generally models perform best with a decent amount of proteins but not too many proteins
+plot(finalResults[finalResults$intersection != 'Fuzzy' &  finalResults$.metric == 'roc_auc',]$.estimate ~ finalResults[finalResults$intersection != 'Fuzzy' &  finalResults$.metric == 'roc_auc',]$total_proteins,
+     main = 'Comparing AUC Values to Protein Count for Hard Intersection', ylab = 'AUC', xlab = 'Protein Count')
+
+plot(finalResults[finalResults$intersection != 'Hard' &  finalResults$.metric == 'roc_auc',]$.estimate ~ finalResults[finalResults$intersection != 'Hard' &  finalResults$.metric == 'roc_auc',]$total_proteins,
+     main = 'Comparing AUC Values to Protein Count for Fuzzy Intersection', ylab = 'AUC', xlab = 'Protein Count')
+
+#Shows that Fuzzy intersection on average performs worse in general
+boxplot(finalResults[finalResults$.metric == 'roc_auc',]$.estimate ~ finalResults[finalResults$.metric == 'roc_auc',]$intersection,
+        main = 'Comparing AUC Values to Intersection Type', ylab = 'AUC', xlab = 'Intersection Types')
+```
+
+```{r}
+finalResults
+finalResults_rearange <- finalResults %>%
+  group_by(proteins_s1,	proteins_s2, intersection) %>%
+  mutate(group_auc = .estimate[.metric == 'accuracy']) %>%
+  ungroup() %>%
+  arrange(desc(group_auc), proteins_s1,	proteins_s2, intersection) |>
+  select(.metric, .estimate, proteins_s1, proteins_s2, total_proteins, intersection)
+
+finalResults_rearange
+head(finalResults_rearange[,c(1,4,5,6,7,8)], n = 20)
+kable(head(finalResults_rearange, n = 20), 
+      col.names = c('Metric', 
+                    'Estimte', 
+                    'Proteins T-test', 
+                    'Proteins Random Forest', 
+                    'Total Proteins', 
+                    'Intersection Type'),
+      caption = 'Metrics for Some Higher Performing Models Sorted by Accuracy')
+```
+
 
 
 

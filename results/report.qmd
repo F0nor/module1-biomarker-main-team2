@@ -85,7 +85,7 @@ finalResults_rearange <- finalResults %>%
   arrange(desc(group_auc), proteins_s1,	proteins_s2, intersection)
 kable(head(finalResults_rearange[,c(2,4,5,6,7,8)], n = 20), 
       col.names = c('Metric', 
-                    'Estimte', 
+                    'Estimate', 
                     'Proteins T-test', 
                     'Proteins Random Forest', 
                     'Total Proteins', 
