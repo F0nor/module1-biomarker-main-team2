@@ -102,12 +102,27 @@ ul.task-list li input[type="checkbox"] {
 <section id="impact-of-preprocessing-and-outliers" class="level3">
 <h3 class="anchored" data-anchor-id="impact-of-preprocessing-and-outliers">Impact of preprocessing and outliers</h3>
 <p>To look at outliers, we removed the trimming step from preprocessing and counted how many of each subject’s 1,317 protein values fell beyond |z| &gt; 3. If the log-transformed levels were normally distributed, we’d expect about 3.6 such values per subject, but the median was 8.5, so the data has heavier tails than normal across the board. Some subjects stood far apart from the rest, though: using an IQR rule on the per-subject counts (cutoff was approx. 29), we flagged 13 outlier subjects, and six of them had between 114 and 157 outlying values each. For several of these subjects, nearly all of the outlying values were in the same direction (subject 9, for example, had 126 unusually high values and none unusually low), which looks more like the whole sample running high, possibly from sample handling or concentration, than a few individual proteins behaving strangely. Outlier subjects were somewhat more common in the TD group (9 of 78) than in the ASD group (4 of 76), but the difference wasn’t statistically significant (Fisher’s test, p approx. 0.25), and the number of outlying values per subject didn’t differ between groups either (Wilcoxon rank-sum test, p approx. 0.82). Within the ASD group, outlier counts were also unrelated to the ADOS score (Spearman’s p approx. -0.04, p approx. 0.72). Overall, a handful of subjects are clear outliers, but they aren’t concentrated in one group enough to suggest they’re driving the differences between ASD and TD.</p>
-<p><img src="figures/Q2-OutlierSubjects.jpg" class="img-fluid"></p>
+<p><img src="figures/Q2-OutlierSubjects.jpg" class="img-fluid" width="1800"></p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="figures/OutDist_byGroup.jpg" class="img-fluid quarto-figure quarto-figure-center figure-img" width="1800"></p>
+</figure>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="figures/Hist-Logtransf.jpg" class="img-fluid quarto-figure quarto-figure-center figure-img" width="360"></p>
+</figure>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="figures/Hist-Pretransf.jpg" class="img-fluid quarto-figure quarto-figure-center figure-img" width="360"></p>
+</figure>
+</div>
 </section>
 <section id="methodological-variations" class="level3">
 <h3 class="anchored" data-anchor-id="methodological-variations">Methodological variations</h3>
 <p>To see how the model could be improved, we experimented with several adjustments and compared the results of several variations of the model to find what worked best. The first adjustment to the model we made was to partition the data into a training and test data set before any processing. In the original model, this step was made after the optimal set of proteins was selected, meaning that the test sample influenced this decision. Moving this step to the start and basing all calculations and decisions solely on the training data set ensures that this does not happen. While this resulted in a decrease in the model’s accuracy, specificity, sensitivity, and ROC AUC, doing this prevents the protein selection to be biased to include the data in the test data sets and ensures the resulting metric are not overly optimistic.</p>
-<p>We also adjusted the number of proteins chosen for analysis. The proteins were selected through two separate methods in the original model, and later combined using the intersection of both selections. For our new model, we tested different combinations of the number of proteins being selected from each model, like 5 proteins chosen by the t-tests and 15 proteins chosen by the random forest for example. The minimum number of proteins selected by each method was 5 and the maximum number selected was 40. The resulting amount of proteins, after taking either the intersection or union from the two selection methods, each model used ranges from 3 to 60. On top of that, each combination of proteins was tested with both with a hard intersection, like the original model where only proteins from both selections are used, and a fuzzy intersection, which uses all the proteins selected. .Some graphical results of this experimentation are shown below.</p>
+<p>We also adjusted the number of proteins chosen for analysis. The proteins were selected through two separate methods in the original model, and later combined using the intersection of both selections. For our new model, we tested different combinations of the number of proteins being selected from each model, like 5 proteins chosen by the t-tests and 15 proteins chosen by the random forest for example. The minimum number of proteins selected by each method was 5 and the maximum number selected was 40. The resulting amount of proteins, after taking either the intersection or union from the two selection methods, each model used ranges from 3 to 60. On top of that, each combination of proteins was tested with both with a hard intersection, like the original model where only proteins from both selections are used, and a fuzzy intersection, which uses all the proteins selected. Some graphical results of this experimentation are shown below.</p>
 <div class="cell">
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
@@ -316,12 +331,199 @@ ul.task-list li input[type="checkbox"] {
 </div>
 </div>
 </div>
-<p>Through testing out several models, we found that excessive amounts of proteins ended up hurting the model overall. The same effect seemed to occur when there were too few proteins. The models that performed the best overall were somewhere in between with around 10 to 30 .<br>
-On average, models with hard intersections outperformed those with fuzzy intersections for all metrics (accuracy, specificity, sensitivity, and ROC AUC) as seen in the scatter plots and box plots. However, the highest performing models were ones with fuzzy intersections, as seen in the data table.</p>
+<p>Through testing out several models, we found that excessive amounts of proteins ended up hurting the model overall. The same effect seemed to occur when there were too few proteins. The models that performed the best overall were somewhere in between with around 10 for the hard intersection models and 20 to 30 for fuzzy intersection models. On average, models with hard intersections outperformed those with fuzzy intersections for all metrics (accuracy, specificity, sensitivity, and ROC AUC) as seen in the scatter plots and box plots. However, the highest performing models were ones with fuzzy intersections, as seen in the data table. The best models performed with a ROC AUC value of over 0.85, and had similarly high specificity values, usually over 0.80. The accuracy rates and sensitivity rates generally are slightly lower, usually being around 0.80 and 0.70 respectively. Below is a table assessing models based on accuracy score.</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Metrics for Some Higher Performing Models Sorted by Accuracy</caption>
+<colgroup>
+<col style="width: 12%">
+<col style="width: 10%">
+<col style="width: 17%">
+<col style="width: 24%">
+<col style="width: 15%">
+<col style="width: 19%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Metric</th>
+<th style="text-align: right;">Estimte</th>
+<th style="text-align: right;">Proteins T-test</th>
+<th style="text-align: right;">Proteins Random Forest</th>
+<th style="text-align: right;">Total Proteins</th>
+<th style="text-align: left;">Intersection Type</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">sensitivity</td>
+<td style="text-align: right;">0.8125000</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: left;">Hard</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">specificity</td>
+<td style="text-align: right;">0.8666667</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: left;">Hard</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">accuracy</td>
+<td style="text-align: right;">0.8387097</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: left;">Hard</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">roc_auc</td>
+<td style="text-align: right;">0.8708333</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: left;">Hard</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">sensitivity</td>
+<td style="text-align: right;">0.8125000</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">20</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: left;">Hard</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">specificity</td>
+<td style="text-align: right;">0.8666667</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">20</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: left;">Hard</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">accuracy</td>
+<td style="text-align: right;">0.8387097</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">20</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: left;">Hard</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">roc_auc</td>
+<td style="text-align: right;">0.8708333</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">20</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: left;">Hard</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">sensitivity</td>
+<td style="text-align: right;">0.8125000</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">25</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: left;">Hard</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">specificity</td>
+<td style="text-align: right;">0.8666667</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">25</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: left;">Hard</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">accuracy</td>
+<td style="text-align: right;">0.8387097</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">25</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: left;">Hard</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">roc_auc</td>
+<td style="text-align: right;">0.8708333</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">25</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: left;">Hard</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">sensitivity</td>
+<td style="text-align: right;">0.8125000</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">30</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: left;">Hard</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">specificity</td>
+<td style="text-align: right;">0.8666667</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">30</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: left;">Hard</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">accuracy</td>
+<td style="text-align: right;">0.8387097</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">30</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: left;">Hard</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">roc_auc</td>
+<td style="text-align: right;">0.8708333</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">30</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: left;">Hard</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">sensitivity</td>
+<td style="text-align: right;">0.8125000</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">35</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: left;">Hard</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">specificity</td>
+<td style="text-align: right;">0.8666667</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">35</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: left;">Hard</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">accuracy</td>
+<td style="text-align: right;">0.8387097</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">35</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: left;">Hard</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">roc_auc</td>
+<td style="text-align: right;">0.8791667</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">35</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: left;">Hard</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>The scatter plots and box plots for accuracy (not shown) depict a similar trend where, on average, models using a hard intersection over a fuzzy intersection perform better. In this case though all the best performing models are using a hard intersection. The models that perform better in terms of accuracy show high values for all metrics.</p>
 </section>
 <section id="improved-classifier" class="level3">
 <h3 class="anchored" data-anchor-id="improved-classifier">Improved classifier</h3>
-<p>With the combinations of split data, fuzzy intersection, and a selection of 10 predictive proteins, our classifier could only achieve a panel of 5 proteins with the same accuracy score as the original analysis which was 0.8387097. Without split data and with a hard intersection, the next best accuracy score achieved was 0.9354839 with a panel of 7 proteins, which is significantly higher than the original. However, as established in examining the methodological variations, models without the split data provided highly optimistic accuracy scores which should warrant suspicion of the improvement. Therefore, the best panel achieved from splitting data and using a fuzzy intersection. could not simplify further from 5 proteins and achieve a better accuracy score than the original .</p>
+<p>With the combinations of split data, fuzzy intersection, and a selection of 10 predictive proteins, our classifier could only achieve a panel of 5 proteins with the same accuracy score as the original analysis which was 0.8387097. Without split data and with a hard intersection, the next best accuracy score achieved was 0.9354839 with a panel of 7 proteins, which is significantly higher than the original. However, as established in examining the methodological variations, models without the split data provided highly optimistic accuracy scores which should warrant suspicion of the improvement. Therefore, the best panel achieved from splitting data and using a fuzzy intersection. could not simplify further from 5 proteins and achieve a better accuracy score than the original.</p>
 </section>
 </section>
 
