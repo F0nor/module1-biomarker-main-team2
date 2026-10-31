@@ -17,6 +17,7 @@ execute:
 ```{r}
 # load any other packages and read data here
 library(tidyverse)
+library(knitr)
 ```
 
 ## Abstract
@@ -49,6 +50,19 @@ We also adjusted the number of proteins chosen for analysis. The proteins were s
 
 ```{r}
 finalResults <- read.csv('../data/Q3v2_results.csv')
+finalResults_rearange <- finalResults %>%
+  group_by(proteins_s1,	proteins_s2, intersection) %>%
+  mutate(group_auc = .estimate[.metric == 'roc_auc']) %>%
+  ungroup() %>%
+  arrange(desc(group_auc), proteins_s1,	proteins_s2, intersection)
+kable(head(finalResults_rearange[,c(2,4,5,6,7,8)], n = 20), 
+      col.names = c('Metric', 
+                    'Estimte', 
+                    'Proteins T-test', 
+                    'Proteins Random Forest', 
+                    'Total Proteins', 
+                    'Intersection Type'),
+      caption = 'Metrics for Some Higher Performing Models Sorted by AUC')
 plot(finalResults[finalResults$intersection != 'Fuzzy' &  finalResults$.metric == 'roc_auc',]$.estimate ~ finalResults[finalResults$intersection != 'Fuzzy' &  finalResults$.metric == 'roc_auc',]$total_proteins,
      main = 'Comparing AUC Values to Protein Count for Hard Intersection', ylab = 'AUC', xlab = 'Protein Count')
 
@@ -60,13 +74,7 @@ boxplot(finalResults[finalResults$.metric == 'roc_auc',]$.estimate ~ finalResult
         main = 'Comparing AUC Values to Intersection Type', ylab = 'AUC', xlab = 'Intersection Types')
 ```
 
-Increasing the number generally saw an increase in  all metrics to an extent
-
-through testing out several models, we found that excessive amounts of proteins ended up hurting the model overall. The same effect seemed to occur when there were too few proteins.
-
-Models with around 20 for both categories around 10 if hard intersection and 
-
-\
+Through testing out several models, we found that excessive amounts of proteins ended up hurting the model overall. The same effect seemed to occur when there were too few proteins. The model that performed the best overall .\
 On average, models with hard intersections outperformed those with fuzzy intersections for all metrics (accuracy, specificity, sensitivity, and ROC AUC). It is important to note that some fuzzy intersection models still managed to do better than the vast majority of other models.
 
 ### Improved classifier

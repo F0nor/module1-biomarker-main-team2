@@ -30,7 +30,7 @@ test_fn <- function(.df){
 
 # partition into training and test set
 # done before any testing or protein selection to ensure all when constructing model is based entirely on the testing set and not the whole data set
-set.seed(1268)
+set.seed(101422)
 biomarker_split <- biomarker_clean %>%
   initial_split(prop = 0.8)
 
@@ -71,7 +71,7 @@ response <- training(biomarker_split) %>%
   factor()
 
 # fit RF
-set.seed(1268)
+set.seed(101422)
 rf_out <- randomForest(x = predictors, 
                        y = response, 
                        ntree = 1000, 
