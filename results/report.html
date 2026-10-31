@@ -6,8 +6,8 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="author" content="Kyle Costabile, Felix Ngo, Anika Anchary, Hannah Nguyen">
-<meta name="dcterms.date" content="2026-10-29">
+<meta name="author" content="Kyle Costabile, Felix Ngo, Anika Achary, Hannah Nguyen">
+<meta name="dcterms.date" content="2026-10-30">
 
 <title>Biomarkers of ASD</title>
 <style>
@@ -58,14 +58,14 @@ ul.task-list li input[type="checkbox"] {
     <div>
     <div class="quarto-title-meta-heading">Author</div>
     <div class="quarto-title-meta-contents">
-             <p>Kyle Costabile, Felix Ngo, Anika Anchary, Hannah Nguyen </p>
+             <p>Kyle Costabile, Felix Ngo, Anika Achary, Hannah Nguyen </p>
           </div>
   </div>
     
     <div>
     <div class="quarto-title-meta-heading">Updated</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">October 29, 2026</p>
+      <p class="date">October 30, 2026</p>
     </div>
   </div>
   
@@ -75,14 +75,14 @@ ul.task-list li input[type="checkbox"] {
 
 </header>
 
-<p>Use this as a template. Keep the headers and remove all other text. In all, your report can be quite short. When it is complete, render and then push changes to your team repository.</p>
 <section id="abstract" class="level2">
 <h2 class="anchored" data-anchor-id="abstract">Abstract</h2>
-<p>Write a brief one-paragraph abstract that describes the contents of your write-up.</p>
+<p>In this reproduced analysis, we utilized the existing database of serum data from Hewitson et al.&nbsp;(2001) which proposed a panel proteins that were meant to distinguish boys with autism spectrum disorder (ASD) and those that were typically developing (TD). The data consisted of 154 subjects and 1,317 proteins. We reproduced a simplified workflow of the published analysis, and made multiple modifications in the methodology to examine the sensitivity the accuracy classification as we made those changes. We noted that the log-transformation applied to the data centered the raw protein values to zero, which were heavily right-skewed. Subjects with their number of outliers were compared to each other by group, and found that there were a handful that were outliers from their group, but there was not a large enough number of subjects to skew one group or another. Modifications to the methodology which included training models with a training partition of the data, choosing a higher selection of predictive proteins, and using a fuzzy intersection rather than a hard intersection, yielded a lower AUROC score compared to the original simplified analysis. Combinations of methods were attempted to find a better accuracy classification score, and discovered that a combination of using training partitioned data for the selection procedure, and fuzzy intersection led to a similar panel of 5 proteins which had the same classification accuracy (0.8387097). Without the split data and with a hard intersection, a panel of 7 proteins were created with a very optimistic classification accuracy (0.9354839).</p>
 </section>
 <section id="dataset" class="level2">
 <h2 class="anchored" data-anchor-id="dataset">Dataset</h2>
-<p>Write a brief data description, including: how data were obtained; sample characteristics; variables measured; and data preprocessing. This can be largely based on the source paper and should not exceed 1-2 paragraphs.</p>
+<p>The data came from Hewitson et al.&nbsp;(2021), who collected serum samples from 154 boys aged 18 months to 8 years: 76 diagnosed with autism spectrum disorder (ASD) and 78 typically developing (TD) boys. Protein levels in each sample were measured with SomaLogic’s SOMAScan 1.3K assay, which gave 1,317 proteins per subject. The data also includes each subject’s group (ASD or TD) and for the ASD group, an ADOS score measuring symptom severity. The published analysis used 1,125 of the proteins after excluding 192, but our analysis keeps all 1,317.</p>
+<p>To preprocess the data, we log10-transformed each protein’s raw levels, which are heavily right-skewed, and then centered and scaled each protein to z-scores. In the original pipeline, any z-score beyond +/- 3 was trimmed to +/- 3 to limit the influence of extreme values. For Q2, we also made an untrimmed version of the data so we could look at those outlying values directly.</p>
 </section>
 <section id="summary-of-published-analysis" class="level2">
 <h2 class="anchored" data-anchor-id="summary-of-published-analysis">Summary of published analysis</h2>
@@ -90,18 +90,45 @@ ul.task-list li input[type="checkbox"] {
 </section>
 <section id="findings" class="level2">
 <h2 class="anchored" data-anchor-id="findings">Findings</h2>
-<p>Summarize your findings here. I’ve included some subheaders in a way that seems natural to me; you can structure this section however you like.</p>
 <section id="impact-of-preprocessing-and-outliers" class="level3">
 <h3 class="anchored" data-anchor-id="impact-of-preprocessing-and-outliers">Impact of preprocessing and outliers</h3>
-<p>Tasks 1-2</p>
+<p>To look at outliers, we removed the trimming step from preprocessing and counted how many of each subject’s 1,317 protein values fell beyond |z| &gt; 3. If the log-transformed levels were normally distributed, we’d expect about 3.6 such values per subject, but the median was 8.5, so the data has heavier tails than normal across the board. Some subjects stood far apart from the rest, though: using an IQR rule on the per-subject counts (cutoff was approx. 29), we flagged 13 outlier subjects, and six of them had between 114 and 157 outlying values each. For several of these subjects, nearly all of the outlying values were in the same direction (subject 9, for example, had 126 unusually high values and none unusually low), which looks more like the whole sample running high, possibly from sample handling or concentration, than a few individual proteins behaving strangely. Outlier subjects were somewhat more common in the TD group (9 of 78) than in the ASD group (4 of 76), but the difference wasn’t statistically significant (Fisher’s test, p approx. 0.25), and the number of outlying values per subject didn’t differ between groups either (Wilcoxon rank-sum test, p approx. 0.82). Within the ASD group, outlier counts were also unrelated to the ADOS score (Spearman’s p approx. -0.04, p approx. 0.72). Overall, a handful of subjects are clear outliers, but they aren’t concentrated in one group enough to suggest they’re driving the differences between ASD and TD.</p>
+<p><img src="figures/Q2-OutlierSubjects.jpg" class="img-fluid"></p>
 </section>
 <section id="methodological-variations" class="level3">
 <h3 class="anchored" data-anchor-id="methodological-variations">Methodological variations</h3>
-<p>Task 3</p>
+<p>To see how the model could be improved, we experimented with several adjustments and compared the results of several variations of the model to find what worked best. The first adjustment to the model we made was to partition the data into a training and test data set before any processing. In the original model, this step was made after the optimal set of proteins was selected, meaning that the test sample influenced this decision. Moving this step to the start and basing all calculations and decisions solely on the training data set ensures that this does not happen. While this resulted in a decrease in the model’s accuracy, specificity, sensitivity, and ROC AUC, doing this prevents the protein selection to be biased to include the data in the test data sets and ensures the resulting metric are not overly optimistic.</p>
+<p>We also adjusted the number of proteins chosen for analysis. The proteins were selected through two separate methods in the original model, and later combined using the intersection of both selections. For our new model, we tested different combinations of the number of proteins being selected from each model, like five from the. On top of that, each combination of proteins was tested with both with a hard intersection, like the original model where only proteins from both selections are used, and a fuzzy intersection, which uses all the proteins selected. Some graphical results of this experimentation are shown below.</p>
+<div class="cell" data-hash="report_cache/html/unnamed-chunk-2_c382e2645fd9545f16a59db013840dea">
+<div class="cell-output-display">
+<p><img src="report_files/figure-html/unnamed-chunk-2-1.png" class="img-fluid" width="672"></p>
+</div>
+<div class="cell-output-display">
+<p><img src="report_files/figure-html/unnamed-chunk-2-2.png" class="img-fluid" width="672"></p>
+</div>
+<div class="cell-output-display">
+<p><img src="report_files/figure-html/unnamed-chunk-2-3.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<p>Increasing the number generally saw an increase in&nbsp; all metrics to an extent</p>
+<p>through testing out several models, we found that excessive amounts of proteins ended up hurting the model overall. The same effect seemed to occur when there were too few proteins.</p>
+<p>Models with around 20 for both categories around 10 if hard intersection and&nbsp;</p>
+<p><br>
+On average, models with hard intersections outperformed those with fuzzy intersections for all metrics (accuracy, specificity, sensitivity, and ROC AUC). It is important to note that some fuzzy intersection models still managed to do better than the vast majority of other models.</p>
 </section>
 <section id="improved-classifier" class="level3">
 <h3 class="anchored" data-anchor-id="improved-classifier">Improved classifier</h3>
-<p>Task 4</p>
+<p>To find an improved classifier which has a simpler panel to achieve comparable or improved accuracy, we experimented with split data, fuzzy intersection, and selection of 10 predictive proteins. We split our analysis into two parts, trimmed and untrimmed data. With trimmed data, our classifier could only achieve a panel of 5 proteins with the same accuracy score as the original analysis which was 0.8387097. Without split data and with a hard intersection, the next best accuracy score achieved was 0.9354839 with a panel of 7 proteins, which is significantly higher than the original. However, as established in examining the methodological variations, models without the split data provided highly optimistic accuracy scores which should warrant suspicion of the improvement. Therefore, the best panel achieved from spliting data and using a fuzzy intersection. could not simplify further from 5 proteins and achieve a better accuracy score than the original .</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="figures/trimmed_top10.png" class="img-fluid figure-img" style="width:30.0%"></p>
+</figure>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="figures/untrimmed_top10.png" class="img-fluid figure-img" style="width:30.0%"></p>
+</figure>
+</div>
 </section>
 </section>
 
