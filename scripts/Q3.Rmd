@@ -180,10 +180,10 @@ finalResults
 #Shows that number of proteins isn't too important for AUC
 #Generally models perform best with a decent amount of proteins but not too many proteins
 plot(finalResults[finalResults$intersection != 'Fuzzy' &  finalResults$.metric == 'roc_auc',]$.estimate ~ finalResults[finalResults$intersection != 'Fuzzy' &  finalResults$.metric == 'roc_auc',]$total_proteins,
-     main = 'Comparing AUC Values to Protein Count for Fuzzy Intersection', ylab = 'AUC', xlab = 'Protein Count')
+     main = 'Comparing AUC Values to Protein Count for Hard Intersection', ylab = 'AUC', xlab = 'Protein Count')
 
 plot(finalResults[finalResults$intersection != 'Hard' &  finalResults$.metric == 'roc_auc',]$.estimate ~ finalResults[finalResults$intersection != 'Hard' &  finalResults$.metric == 'roc_auc',]$total_proteins,
-     main = 'Comparing AUC Values to Protein Count for Hard Intersection', ylab = 'AUC', xlab = 'Protein Count')
+     main = 'Comparing AUC Values to Protein Count for Fuzzy Intersection', ylab = 'AUC', xlab = 'Protein Count')
 
 #Shows that Fuzzy intersection on average performs worse in general
 boxplot(finalResults[finalResults$.metric == 'roc_auc',]$.estimate ~ finalResults[finalResults$.metric == 'roc_auc',]$intersection,

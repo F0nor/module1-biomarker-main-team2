@@ -45,7 +45,20 @@ To look at outliers, we removed the trimming step from preprocessing and counted
 
 To see how the model could be improved, we experimented with several adjustments and compared the results of several variations of the model to find what worked best. The first adjustment to the model we made was to partition the data into a training and test data set before any processing. In the original model, this step was made after the optimal set of proteins was selected, meaning that the test sample influenced this decision. Moving this step to the start and basing all calculations and decisions solely on the training data set ensures that this does not happen. While this resulted in a decrease in the model's accuracy, specificity, sensitivity, and ROC AUC, doing this prevents the protein selection to be biased to include the data in the test data sets and ensures the resulting metric are not overly optimistic.
 
-We also adjusted the number of proteins chosen for analysis. The proteins were selected through two separate methods in the original model, and later combined using the intersection of both selections. For our new model, we tested different combinations of the number of proteins being selected from each model, like five from the. On top of that, each combination of proteins was tested with both with a hard intersection, like the original model where only proteins from both selections are used, and a fuzzy intersection, which uses all the proteins selected.
+We also adjusted the number of proteins chosen for analysis. The proteins were selected through two separate methods in the original model, and later combined using the intersection of both selections. For our new model, we tested different combinations of the number of proteins being selected from each model, like five from the. On top of that, each combination of proteins was tested with both with a hard intersection, like the original model where only proteins from both selections are used, and a fuzzy intersection, which uses all the proteins selected. Some graphical results of this experimentation are shown below.
+
+```{r}
+finalResults <- read.csv('../data/Q3v2_results.csv')
+plot(finalResults[finalResults$intersection != 'Fuzzy' &  finalResults$.metric == 'roc_auc',]$.estimate ~ finalResults[finalResults$intersection != 'Fuzzy' &  finalResults$.metric == 'roc_auc',]$total_proteins,
+     main = 'Comparing AUC Values to Protein Count for Hard Intersection', ylab = 'AUC', xlab = 'Protein Count')
+
+plot(finalResults[finalResults$intersection != 'Hard' &  finalResults$.metric == 'roc_auc',]$.estimate ~ finalResults[finalResults$intersection != 'Hard' &  finalResults$.metric == 'roc_auc',]$total_proteins,
+     main = 'Comparing AUC Values to Protein Count for Fuzzy Intersection', ylab = 'AUC', xlab = 'Protein Count')
+
+#Shows that Fuzzy intersection on average performs worse in general
+boxplot(finalResults[finalResults$.metric == 'roc_auc',]$.estimate ~ finalResults[finalResults$.metric == 'roc_auc',]$intersection,
+        main = 'Comparing AUC Values to Intersection Type', ylab = 'AUC', xlab = 'Intersection Types')
+```
 
 Increasing the number generally saw an increase in  all metrics to an extent
 
@@ -60,4 +73,4 @@ On average, models with hard intersections outperformed those with fuzzy interse
 
 ### Improved classifier
 
-With the combinations of split data, fuzzy intersection, and a selection of 10 predictive proteins, our classifier could only achieve a panel of 5 proteins with the same accuracy score as the original analysis which was 0.8387097. Without split data and with a hard intersection, the next best accuracy score achieved was 0.9354839 with a panel of 7 proteins, which is significantly higher than the original. However, as established in examining the methodological variations, models without the split data provided highly optimistic accuracy scores which should warrant suspicion of the improvement. Therefore, the best panel achieved from spliting data and using a fuzzy intersection. could not simplify further from 5 proteins and achieve a better accuracy score than the original .
+With the combinations of split data, fuzzy intersection, and a selection of 10 predictive proteins, our classifier could only achieve a panel of 5 proteins with the same accuracy score as the original analysis which was 0.8387097. Without split data and with a hard intersection, the next best accuracy score achieved was 0.9354839 with a panel of 7 proteins, which is significantly higher than the original. However, as established in examining the methodological variations, models without the split data provided highly optimistic accuracy scores which should warrant suspicion of the improvement. Therefore, the best panel achieved from splitting data and using a fuzzy intersection. could not simplify further from 5 proteins and achieve a better accuracy score than the original .
