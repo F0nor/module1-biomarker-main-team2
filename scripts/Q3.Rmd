@@ -186,6 +186,6 @@ plot(finalResults[finalResults$intersection != 'Hard' &  finalResults$.metric ==
 
 #Shows that Fuzzy intersection on average performs worse in general
 boxplot(finalResults[finalResults$.metric == 'roc_auc',]$.estimate ~ finalResults[finalResults$.metric == 'roc_auc',]$intersection,
-        main = 'Comparing AUC Values to Intersection Type', ylab = 'AUC', xlab = 'Intersection')
+        main = 'Comparing AUC Values to Intersection Type', ylab = 'AUC', xlab = 'Intersection Types')
 ```
 
