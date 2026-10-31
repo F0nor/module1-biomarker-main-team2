@@ -46,7 +46,7 @@ To look at outliers, we removed the trimming step from preprocessing and counted
 
 To see how the model could be improved, we experimented with several adjustments and compared the results of several variations of the model to find what worked best. The first adjustment to the model we made was to partition the data into a training and test data set before any processing. In the original model, this step was made after the optimal set of proteins was selected, meaning that the test sample influenced this decision. Moving this step to the start and basing all calculations and decisions solely on the training data set ensures that this does not happen. While this resulted in a decrease in the model's accuracy, specificity, sensitivity, and ROC AUC, doing this prevents the protein selection to be biased to include the data in the test data sets and ensures the resulting metric are not overly optimistic.
 
-We also adjusted the number of proteins chosen for analysis. The proteins were selected through two separate methods in the original model, and later combined using the intersection of both selections. For our new model, we tested different combinations of the number of proteins being selected from each model, like 5 proteins chosen by the t-tests and 15 proteins chosen by the random forest for example. The minimum number of proteins selected by each method was 5 and the maximum number selected was 40. The resulting amount of proteins, after taking either the intersection or union from the two selection methods, each model used ranges from 3 to 60. On top of that, each combination of proteins was tested with both with a hard intersection, like the original model where only proteins from both selections are used, and a fuzzy intersection, which uses all the proteins selected. .Some graphical results of this experimentation are shown below.
+We also adjusted the number of proteins chosen for analysis. The proteins were selected through two separate methods in the original model, and later combined using the intersection of both selections. For our new model, we tested different combinations of the number of proteins being selected from each model, like 5 proteins chosen by the t-tests and 15 proteins chosen by the random forest for example. The minimum number of proteins selected by each method was 5 and the maximum number selected was 40. The resulting amount of proteins, after taking either the intersection or union from the two selection methods, each model used ranges from 3 to 60. On top of that, each combination of proteins was tested with both with a hard intersection, like the original model where only proteins from both selections are used, and a fuzzy intersection, which uses all the proteins selected. Some graphical results of this experimentation are shown below.
 
 ```{r}
 finalResults <- read.csv('../data/Q3v2_results.csv')
@@ -55,7 +55,7 @@ finalResults_rearange <- finalResults %>%
   mutate(group_auc = .estimate[.metric == 'roc_auc']) %>%
   ungroup() %>%
   arrange(desc(group_auc), proteins_s1,	proteins_s2, intersection)
-kable(head(finalResults_rearange[,c(2,4,5,6,7,8)], n = 28), 
+kable(head(finalResults_rearange[,c(2,4,5,6,7,8)], n = 20), 
       col.names = c('Metric', 
                     'Estimte', 
                     'Proteins T-test', 
@@ -74,8 +74,26 @@ boxplot(finalResults[finalResults$.metric == 'roc_auc',]$.estimate ~ finalResult
         main = 'Comparing AUC Values to Intersection Type', ylab = 'AUC', xlab = 'Intersection Types')
 ```
 
-Through testing out several models, we found that excessive amounts of proteins ended up hurting the model overall. The same effect seemed to occur when there were too few proteins. The models that performed the best overall .\
-On average, models with hard intersections outperformed those with fuzzy intersections for all metrics (accuracy, specificity, sensitivity, and ROC AUC) as seen in the scatter plots and box plots. However, the highest performing models were ones with fuzzy intersections, as seen in the data table.
+Through testing out several models, we found that excessive amounts of proteins ended up hurting the model overall. The same effect seemed to occur when there were too few proteins. The models that performed the best overall were somewhere in between with around 10 for the hard intersection models and 20 to 30 for fuzzy intersection models. On average, models with hard intersections outperformed those with fuzzy intersections for all metrics (accuracy, specificity, sensitivity, and ROC AUC) as seen in the scatter plots and box plots. However, the highest performing models were ones with fuzzy intersections, as seen in the data table. The best models performed with a ROC AUC value of over 0.85, and had similarly high specificity values, usually over 0.80. The accuracy rates and sensitivity rates generally are slightly lower, usually being around 0.80 and 0.70 respectively. Below is a table assessing models based on accuracy score.
+
+```{r}
+finalResults <- read.csv('../data/Q3v2_results.csv')
+finalResults_rearange <- finalResults %>%
+  group_by(proteins_s1,	proteins_s2, intersection) %>%
+  mutate(group_auc = .estimate[.metric == 'accuracy']) %>%
+  ungroup() %>%
+  arrange(desc(group_auc), proteins_s1,	proteins_s2, intersection)
+kable(head(finalResults_rearange[,c(2,4,5,6,7,8)], n = 20), 
+      col.names = c('Metric', 
+                    'Estimte', 
+                    'Proteins T-test', 
+                    'Proteins Random Forest', 
+                    'Total Proteins', 
+                    'Intersection Type'),
+      caption = 'Metrics for Some Higher Performing Models Sorted by Accuracy')
+```
+
+The scatter plots and box plots for accuracy (not shown) depict a similar trend where, on average, models using a hard intersection over a fuzzy intersection perform better. In this case though all the best performing models are using a hard intersection. The models that perform better in terms of accuracy show high values for all metrics.
 
 ### Improved classifier
 
