@@ -32,6 +32,15 @@ Once the proteins were picked, 6 were identified to be in both RF and t-test's b
 
 Lastly, to account for any confounding factors, Hewitson et al. investigated the effects of ethnicity, co-morbid conditions / clinical diagnoses, age, and medication on 12 of the proteins. Ethnicity was tested by splitting the data into two groups, white and non-white. Allergies were tested by a similar method, splitting the data into two groups, participants who had allergies and who didn't. Then, t-test was run on the two groups for each of the 6 core proteins. To examine the effects of age, Spearman's rank correlation was implemented for each protein versus age distribution. For the effects of psychiatric medications, AUC values for the full dataset was compared with AUC values for the dataset excluding participants who reported medication usage.
 
+```{mermaid}
+library(mermaid)
+flowchart LR
+  A[Hard edge] --> B(Round edge)
+  B --> C{Decision}
+  C --> D[Result one]
+  C --> E[Result two]
+```
+
 ### Improved classifier
 
 To find an improved classifier with a simpler panel for comparable or improved accuracy, we experimented with split data, fuzzy intersection, and selection of 10 predictive proteins. Our analysis is separated into two parts, trimmed and untrimmed data. With trimmed data, our classifier could only achieve a panel of 5 proteins with the same accuracy score as the original analysis (0.8387097). Without split data and with a hard intersection, the next best accuracy score achieved was 0.9354839 with a panel of 7 proteins; significantly higher than the original. However, as established in examining the methodological variations, models without the split data provided highly optimistic accuracy scores, which should warrant suspicion of the improvement in accuracy. Therefore, the best panel achieved from splitting data and using a fuzzy intersection could not be simplified using less than 5 proteins and achieve a better accuracy than the original. Below, the table displays the type of intersection, the selected number of proteins, the minimum number of proteins, and the accuracy for splitting the data.
@@ -46,7 +55,7 @@ To find an improved classifier with a simpler panel for comparable or improved a
 knitr::include_graphics("../../results/figures/trimmed_top10.png")
 ```
 
-Next, we worked with untrimmed data, which avoided modifying protein's levels whose z-score exceeded +/- 3. With untrimmed data and splitting, the results are nearly identical to those of the trimmed data. The conclusion is the same, where the classifier achieves a similar accuracy to the original analysis with a panel of 5 proteins. Unlike the trimmed data, the best accuracy achieved without splitting the data is 0.871 using hard intersection and a panel of 6 proteins. The accuracy does not significantly improve compared to the original analysis'. This suggests that the trimmed data plays a bigger role in improving the accuracy of the classifier on the full dataset. But as stated earlier, this slightly biases the classifier, making it an inaccurate representation of how well it generalizes to unseen data. Therefore, trimming versus untrimming the data does not significantly impact the classifier's ability to provide accurate predictions when splitting the data.
+Next, we worked with untrimmed data, which avoided modifying protein's levels whose z-score exceeded +/- 3. With untrimmed data and splitting, the results are nearly identical to those of the trimmed data. The conclusion is the same, where the classifier achieves a similar accuracy to the original analysis with a panel of 5 proteins. The 5 proteins are DERM, IgD, TSP4, PTN, and FSTL1. Unlike the trimmed data, the best accuracy achieved without splitting the data is 0.871 using hard intersection and a panel of 6 proteins, DERM, RELT, MRC2, IgD, PTN, and Cadherin-5. The accuracy does not significantly improve compared to the original analysis'. This suggests that the trimmed data plays a bigger role in improving the accuracy of the classifier on the full dataset. But as stated earlier, this slightly biases the classifier, making it an inaccurate representation of how well it generalizes to unseen data. Therefore, trimming versus untrimming the data does not significantly impact the classifier's ability to provide accurate predictions when splitting the data.
 
 
 ```{r}
