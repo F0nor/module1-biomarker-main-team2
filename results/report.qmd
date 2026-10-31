@@ -62,11 +62,9 @@ boxplot(finalResults[finalResults$.metric == 'roc_auc',]$.estimate ~ finalResult
 
 Increasing the number generally saw an increase in  all metrics to an extent
 
-Excessive amounts of proteins ended up hurting the model
+through testing out several models, we found that excessive amounts of proteins ended up hurting the model overall. The same effect seemed to occur when there were too few proteins.
 
 Models with around 20 for both categories around 10 if hard intersection and 
-
-Similar numbers from both methods, over-weighting one method more
 
 \
 On average, models with hard intersections outperformed those with fuzzy intersections for all metrics (accuracy, specificity, sensitivity, and ROC AUC). It is important to note that some fuzzy intersection models still managed to do better than the vast majority of other models.
