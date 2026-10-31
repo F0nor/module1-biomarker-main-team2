@@ -83,10 +83,7 @@ ul.task-list li input[type="checkbox"] {
 
 </header>
 
-<<<<<<< HEAD
-=======
 
->>>>>>> 0c8cdd706baa67019bf3585ab47202f9e9108495
 <section id="abstract" class="level2">
 <h2 class="anchored" data-anchor-id="abstract">Abstract</h2>
 <p>In this reproduced analysis, we utilized the existing database of serum data from Hewitson et al.&nbsp;(2001) which proposed a panel proteins that were meant to distinguish boys with autism spectrum disorder (ASD) and those that were typically developing (TD). The data consisted of 154 subjects and 1,317 proteins. We reproduced a simplified workflow of the published analysis, and made multiple modifications in the methodology to examine the sensitivity the accuracy classification as we made those changes. We noted that the log-transformation applied to the data centered the raw protein values to zero, which were heavily right-skewed. Subjects with their number of outliers were compared to each other by group, and found that there were a handful that were outliers from their group, but there was not a large enough number of subjects to skew one group or another. Modifications to the methodology which included training models with a training partition of the data, choosing a higher selection of predictive proteins, and using a fuzzy intersection rather than a hard intersection, yielded a lower AUROC score compared to the original simplified analysis. Combinations of methods were attempted to find a better accuracy classification score, and discovered that a combination of using training partitioned data for the selection procedure, and fuzzy intersection led to a similar panel of 5 proteins which had the same classification accuracy (0.8387097). Without the split data and with a hard intersection, a panel of 7 proteins were created with a very optimistic classification accuracy (0.9354839).</p>
@@ -111,23 +108,6 @@ ul.task-list li input[type="checkbox"] {
 <h3 class="anchored" data-anchor-id="methodological-variations">Methodological variations</h3>
 <p>To see how the model could be improved, we experimented with several adjustments and compared the results of several variations of the model to find what worked best. The first adjustment to the model we made was to partition the data into a training and test data set before any processing. In the original model, this step was made after the optimal set of proteins was selected, meaning that the test sample influenced this decision. Moving this step to the start and basing all calculations and decisions solely on the training data set ensures that this does not happen. While this resulted in a decrease in the model’s accuracy, specificity, sensitivity, and ROC AUC, doing this prevents the protein selection to be biased to include the data in the test data sets and ensures the resulting metric are not overly optimistic.</p>
 <p>We also adjusted the number of proteins chosen for analysis. The proteins were selected through two separate methods in the original model, and later combined using the intersection of both selections. For our new model, we tested different combinations of the number of proteins being selected from each model, like five from the. On top of that, each combination of proteins was tested with both with a hard intersection, like the original model where only proteins from both selections are used, and a fuzzy intersection, which uses all the proteins selected. Some graphical results of this experimentation are shown below.</p>
-<<<<<<< HEAD
-<div class="cell" data-hash="report_cache/html/unnamed-chunk-2_c382e2645fd9545f16a59db013840dea">
-<div class="cell-output-display">
-<p><img src="report_files/figure-html/unnamed-chunk-2-1.png" class="img-fluid" width="672"></p>
-</div>
-<div class="cell-output-display">
-<p><img src="report_files/figure-html/unnamed-chunk-2-2.png" class="img-fluid" width="672"></p>
-</div>
-<div class="cell-output-display">
-<p><img src="report_files/figure-html/unnamed-chunk-2-3.png" class="img-fluid" width="672"></p>
-</div>
-</div>
-<p>Increasing the number generally saw an increase in&nbsp; all metrics to an extent</p>
-<p>through testing out several models, we found that excessive amounts of proteins ended up hurting the model overall. The same effect seemed to occur when there were too few proteins.</p>
-<p>Models with around 20 for both categories around 10 if hard intersection and&nbsp;</p>
-<p><br>
-=======
 <div class="cell">
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
@@ -311,6 +291,70 @@ ul.task-list li input[type="checkbox"] {
 <td style="text-align: right;">7</td>
 <td style="text-align: left;">Hard</td>
 </tr>
+<tr class="odd">
+<td style="text-align: left;">sensitivity</td>
+<td style="text-align: right;">0.8125000</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">35</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: left;">Hard</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">specificity</td>
+<td style="text-align: right;">0.8666667</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">35</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: left;">Hard</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">accuracy</td>
+<td style="text-align: right;">0.8387097</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">35</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: left;">Hard</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">roc_auc</td>
+<td style="text-align: right;">0.8791667</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">35</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: left;">Hard</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">sensitivity</td>
+<td style="text-align: right;">0.6875000</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: left;">Fuzzy</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">specificity</td>
+<td style="text-align: right;">0.8666667</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: left;">Fuzzy</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">accuracy</td>
+<td style="text-align: right;">0.7741935</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: left;">Fuzzy</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">roc_auc</td>
+<td style="text-align: right;">0.8750000</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: left;">Fuzzy</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -337,26 +381,11 @@ ul.task-list li input[type="checkbox"] {
 </div>
 </div>
 <p>Through testing out several models, we found that excessive amounts of proteins ended up hurting the model overall. The same effect seemed to occur when there were too few proteins. The model that performed the best overall .<br>
->>>>>>> 0c8cdd706baa67019bf3585ab47202f9e9108495
 On average, models with hard intersections outperformed those with fuzzy intersections for all metrics (accuracy, specificity, sensitivity, and ROC AUC). It is important to note that some fuzzy intersection models still managed to do better than the vast majority of other models.</p>
 </section>
 <section id="improved-classifier" class="level3">
 <h3 class="anchored" data-anchor-id="improved-classifier">Improved classifier</h3>
-<<<<<<< HEAD
-<p>To find an improved classifier which has a simpler panel to achieve comparable or improved accuracy, we experimented with split data, fuzzy intersection, and selection of 10 predictive proteins. We split our analysis into two parts, trimmed and untrimmed data. With trimmed data, our classifier could only achieve a panel of 5 proteins with the same accuracy score as the original analysis which was 0.8387097. Without split data and with a hard intersection, the next best accuracy score achieved was 0.9354839 with a panel of 7 proteins, which is significantly higher than the original. However, as established in examining the methodological variations, models without the split data provided highly optimistic accuracy scores which should warrant suspicion of the improvement. Therefore, the best panel achieved from spliting data and using a fuzzy intersection. could not simplify further from 5 proteins and achieve a better accuracy score than the original .</p>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="figures/trimmed_top10.png" class="img-fluid figure-img" style="width:30.0%"></p>
-</figure>
-</div>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="figures/untrimmed_top10.png" class="img-fluid figure-img" style="width:30.0%"></p>
-</figure>
-</div>
-=======
 <p>With the combinations of split data, fuzzy intersection, and a selection of 10 predictive proteins, our classifier could only achieve a panel of 5 proteins with the same accuracy score as the original analysis which was 0.8387097. Without split data and with a hard intersection, the next best accuracy score achieved was 0.9354839 with a panel of 7 proteins, which is significantly higher than the original. However, as established in examining the methodological variations, models without the split data provided highly optimistic accuracy scores which should warrant suspicion of the improvement. Therefore, the best panel achieved from splitting data and using a fuzzy intersection. could not simplify further from 5 proteins and achieve a better accuracy score than the original .</p>
->>>>>>> 0c8cdd706baa67019bf3585ab47202f9e9108495
 </section>
 </section>
 
