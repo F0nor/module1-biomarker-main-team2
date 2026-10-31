@@ -27,7 +27,7 @@ In this reproduced analysis, we utilized the existing database of serum data fro
 
 The data came from Hewitson et al. (2021), who collected serum samples from 154 boys aged 18 months to 8 years: 76 diagnosed with autism spectrum disorder (ASD) and 78 typically developing (TD) boys. Protein levels in each sample were measured with SomaLogic's SOMAScan 1.3K assay, which gave 1,317 proteins per subject. The data also includes each subject's group (ASD or TD) and for the ASD group, an ADOS score measuring symptom severity. The published analysis used 1,125 of the proteins after excluding 192, but our analysis keeps all 1,317.
 
-To preprocess the data, we log10-transformed each protein's raw levels, which are heavily right-skewed, and then centered and scaled each protein to z-scores. In the original pipeline, any z-score beyond +/- 3 was trimmed to +/- 3 to limit the influence of extreme values. For Q2, we also made an untrimmed version of the data so we could look at those outlying values directly. 
+To preprocess the data, we log10-transformed each protein's raw levels, which are heavily right-skewed, and then centered and scaled each protein to z-scores. In the original pipeline, any z-score beyond +/- 3 was trimmed to +/- 3 to limit the influence of extreme values. For Q2, we also made an untrimmed version of the data so we could look at those outlying values directly.
 
 ## Summary of published analysis
 
@@ -47,4 +47,8 @@ Task 3
 
 ### Improved classifier
 
-With the combinations of split data, fuzzy intersection, and a selection of 10 predictive proteins, our classifier could only achieve a panel of 5 proteins with the same accuracy score as the original analysis which was 0.8387097. Without split data and with a hard intersection, the next best accuracy score achieved was 0.9354839 with a panel of 7 proteins, which is significantly higher than the original. However, as established in examining the methodological variations, models without the split data provided highly optimistic accuracy scores which should warrant suspicion of the improvement. Therefore, the best panel achieved from spliting data and using a fuzzy intersection. could not simplify further from 5 proteins and achieve a better accuracy score than the original .
+To find an improved classifier which has a simpler panel to achieve comparable or improved accuracy, we experimented with split data, fuzzy intersection, and selection of 10 predictive proteins. We split our analysis into two parts, trimmed and untrimmed data. With trimmed data, our classifier could only achieve a panel of 5 proteins with the same accuracy score as the original analysis which was 0.8387097. Without split data and with a hard intersection, the next best accuracy score achieved was 0.9354839 with a panel of 7 proteins, which is significantly higher than the original. However, as established in examining the methodological variations, models without the split data provided highly optimistic accuracy scores which should warrant suspicion of the improvement. Therefore, the best panel achieved from spliting data and using a fuzzy intersection. could not simplify further from 5 proteins and achieve a better accuracy score than the original .
+
+![](figures/trimmed_top10.png){width="264"}
+
+![](figures/untrimmed_top10.png){width="254"}
